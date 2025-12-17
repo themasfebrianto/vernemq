@@ -19,24 +19,25 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /build
 
-# Download and install rebar3
-RUN wget https://github.com/erlang/rebar3/releases/download/3.23.0/rebar3 && \
-    chmod +x rebar3 && \
-    mv rebar3 /usr/local/bin/
+# rebar3 is copied from local directory and available in build directory
 
 # Copy necessary files for building
 COPY rebar.config rebar.lock ./
 COPY Makefile ./
+COPY rebar3 ./rebar3
 COPY vars.config ./
 COPY files/ ./files/
 COPY apps/ ./apps/
 COPY 3rd-party-licenses.txt ./
 
+# Make rebar3 executable
+RUN chmod +x ./rebar3
+
 # Get git version for build
 RUN git describe --tags --always || echo "no-git-version"
 
-# Build the release using rebar3
-RUN rebar3 release
+# Build the release using make (which creates vars.generated first)
+RUN make rel
 
 # Stage 2: Minimal runtime stage
 FROM erlang:26.2-slim as runtime

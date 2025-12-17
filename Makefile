@@ -2,7 +2,7 @@ BASE_DIR         = $(shell pwd)
 ERLANG_BIN       = $(shell dirname $(shell which erl))
 GIT_VERSION      = $(shell git describe --tags --always)
 OVERLAY_VARS    ?=
-REBAR ?= $(BASE_DIR)/rebar3
+REBAR ?= $(shell which rebar3 || echo "$(BASE_DIR)/rebar3")
 
 $(if $(ERLANG_BIN),,$(warning "Warning: No Erlang found in your path, this will probably not work"))
 
