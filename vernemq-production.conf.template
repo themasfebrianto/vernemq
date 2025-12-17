@@ -1,0 +1,203 @@
+# VerneMQ Production Configuration Template
+# This file contains production-ready settings optimized for IoT deployments
+
+# =============================================================================
+# NODE CONFIGURATION
+# =============================================================================
+
+# Cookie for distributed node communication - CHANGE THIS IN PRODUCTION!
+distributed_cookie = YOUR_SECRET_COOKIE_HERE
+
+# Name of the Erlang node
+nodename = VerneMQ@0.0.0.0
+
+# =============================================================================
+# NETWORK CONFIGURATION
+# =============================================================================
+
+# MQTT TCP Port (1883)
+mqtt.default_port = 1883
+
+# MQTT SSL/TLS Port (8883)  
+mqtts.default_port = 8883
+
+# WebSocket Port (8080)
+mqtt.default_ws_port = 8080
+
+# MQTT WebSocket SSL/TLS Port (8083)
+mqtts.default_ws_port = 8083
+
+# Management HTTP Port (8888)
+http.default_port = 8888
+
+# Management HTTPS Port (8889)
+https.default_port = 8889
+
+# Allow both IPv4 and IPv6
+allow_anonymous = off
+
+# =============================================================================
+# CONNECTION LIMITS (Optimized for IoT)
+# =============================================================================
+
+# Maximum number of simultaneous connections (high for IoT scenarios)
+max_connections = 50000
+
+# Maximum number of acceptor processes
+max_nr_of_acceptors = 20
+
+# =============================================================================
+# CLUSTERING CONFIGURATION
+# =============================================================================
+
+# Cluster discovery plugin (can be: vmq_swc, vmq_bridge, etc.)
+metadata_plugin = vmq_swc
+
+# Cluster port for distributed communication
+cluster.default_port = 44053
+
+# SSL cluster port
+cluster.ssl_default_port = 44054
+
+# =============================================================================
+# MESSAGE STORE CONFIGURATION
+# =============================================================================
+
+# Message store type (can be: vmq_generic_msg_store, etc.)
+message_store = vmq_generic_msg_store
+
+# Maximum message size in bytes (1MB default for IoT sensors)
+max_message_size = 1048576
+
+# =============================================================================
+# AUTHENTICATION & AUTHORIZATION
+# =============================================================================
+
+# Use password file for authentication
+password_file = /opt/vernemq/etc/vmq.password
+
+# Use ACL file for authorization
+acl_file = /opt/vernemq/etc/vmq.acl
+
+# =============================================================================
+# LOGGING CONFIGURATION
+# =============================================================================
+
+# Console logging - set to file for production to avoid logging to stdout
+log.console = file
+
+# Console log level
+log.console.level = info
+
+# Error logging
+log.error = on
+
+# Error log file
+log.error.file = /opt/vernemq/log/error.log
+
+# Console log file
+log.console.file = /opt/vernemq/log/console.log
+
+# Crash logging (disabled by default as it's written to error log)
+log.crash = off
+
+# SASL logging (for OTP system messages)
+log.sasl = off
+
+# Log rotation for production
+log.console.rotation.size = 104857600  # 100MB
+log.console.rotation.keep = 10
+
+log.error.rotation.size = 104857600   # 100MB  
+log.error.rotation.keep = 10
+
+# =============================================================================
+# PERFORMANCE TUNING (IoT Optimized)
+# =============================================================================
+
+# Session persistence - shorter expiration for IoT devices
+persistent_client_expiration = 1d
+
+# Queue size for offline messages (increased for IoT)
+max_inflight_messages = 20
+
+# Message queue size (increased for IoT scenarios)
+max_message_queue_size = 1000
+
+# Connection timeout
+connection_timeout = 60
+
+# =============================================================================
+# TLS/SSL CONFIGURATION (Recommended for IoT)
+# =============================================================================
+
+# To enable TLS/SSL for secure IoT communication, uncomment and configure:
+# listener.ssl.default = on
+# listener.ssl.default.port = 8883
+# listener.ssl.default.protocols = tlsv1.2,tlsv1.3
+# listener.ssl.default.cacertfile = /opt/vernemq/etc/ssl/cacert.pem
+# listener.ssl.default.certfile = /opt/vernemq/etc/ssl/cert.pem
+# listener.ssl.default.keyfile = /opt/vernemq/etc/ssl/key.pem
+
+# =============================================================================
+# PLUGIN CONFIGURATION (for .NET Backend Integration)
+# =============================================================================
+
+# Webhooks plugin (for .NET backend integration)
+# plugin.vmq_webhooks = on
+# plugin.vmq_webhooks.hook_timeout = 10000
+
+# Bridge plugin (for connecting to other MQTT brokers)
+# plugin.vmq_bridge = off
+
+# HTTP Publishing plugin (for .NET backend communication)
+# plugin.vmq_http_pub = on
+# plugin.vmq_http_pub.bind = 127.0.0.1
+# plugin.vmq_http_pub.port = 8889
+
+# =============================================================================
+# MONITORING & METRICS
+# =============================================================================
+
+# Enable metrics collector
+metrics.enabled = on
+
+# Prometheus metrics endpoint
+# metrics.listener = 127.0.0.1:8889
+
+# =============================================================================
+# DATABASE INTEGRATION (Optional for .NET Backend)
+# =============================================================================
+
+# For production, you might want to configure external database auth:
+# plugin.vmq_diversity = on
+# vmq_diversity.auth_backend = vmq_plugin
+
+# Redis configuration example:
+# vmq_diversity.redis.server = redis-host
+# vmq_diversity.redis.port = 6379
+# vmq_diversity.redis.database = 0
+
+# PostgreSQL configuration example:
+# vmq_diversity.postgres.server = postgres-host
+# vmq_diversity.postgres.port = 5432
+# vmq_diversity.postgres.database = vernemq
+# vmq_diversity.postgres.username = vernemq
+# vmq_diversity.postgres.password = password
+
+# MySQL configuration example:
+# vmq_diversity.mysql.server = mysql-host
+# vmq_diversity.mysql.port = 3306
+# vmq_diversity.mysql.database = vernemq
+# vmq_diversity.mysql.username = vernemq
+# vmq_diversity.mysql.password = password
+
+# =============================================================================
+# RESOURCE LIMITS (IoT High-Scale)
+# =============================================================================
+
+# Memory limit warning threshold
+vmq_memory_high_watermark = 0.75
+
+# File descriptor limit (high for IoT connections)
+ulimit_open_files = 65536

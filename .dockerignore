@@ -1,0 +1,85 @@
+# Git and version control
+.git
+.gitignore
+.gitmodules
+.git-blame-ignore-revs
+
+# Build artifacts and cache
+_build/
+.relx/
+.erlang.mk/
+*.beam
+
+# Development files
+.vscode/
+.vs/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Documentation and README files (optional for production)
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+SECURITY.md
+CODE_OF_CONDUCT.md
+ADOPTERS.md
+PROMISES.md
+THANKS
+
+# Test files
+test/
+**/test/
+**/tests/
+**/*_test.erl
+**/*_SUITE.erl
+
+# Development dependencies
+node_modules/
+npm-debug.log*
+.yarn-integrity
+
+# Local development
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE files
+*.iml
+.idea/
+*.iws
+*.ipr
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Coverage reports
+cover/
+coveralls.json
+.cover/
+
+# Erlang-specific
+*.dump
+erl_crash.dump
+.mnesia/
+*.plt
+
+# Backup files
+*.bak
+*.backup
