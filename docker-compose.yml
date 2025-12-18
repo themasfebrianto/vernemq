@@ -32,6 +32,15 @@ services:
         ports:
           - 6379:6379
 
+      webhook-auth:
+        build:
+          context: ./VerneMQWebhookAuth
+          dockerfile: Dockerfile
+        container_name: webhook-auth
+        ports:
+          - 5000:5000
+        restart: always
+
       vernemq:
         image: vernemq/vernemq:latest
         container_name: vernemq
@@ -42,8 +51,14 @@ services:
         environment:
           - DOCKER_VERNEMQ_ACCEPT_EULA=yes
           - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=off
-          - DOCKER_VERNEMQ_PLUGINS__VMQ_PASSWD=on
-          - DOCKER_VERNEMQ_VMQ_PASSWD__PASSWORD_FILE=/opt/vernemq/etc/vmq.password
-        volumes:
-          - ./vmq.password:/opt/vernemq/etc/vmq.password:ro
+          - DOCKER_VERNEMQ_PLUGINS__VMQ_WEBHOOKS=on
+          # Named webhook configs: MYAUTH1 for register, MYAUTH2 for publish, MYAUTH3 for subscribe
+          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH1__HOOK=auth_on_register
+          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH1__ENDPOINT=http://webhook-auth:5000/mqtt/auth
+          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH2__HOOK=auth_on_publish
+          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH2__ENDPOINT=http://webhook-auth:5000/mqtt/publish
+          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH3__HOOK=auth_on_subscribe
+          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH3__ENDPOINT=http://webhook-auth:5000/mqtt/subscribe
+        depends_on:
+          - webhook-auth
         restart: always
