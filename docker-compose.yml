@@ -1,4 +1,3 @@
-version: "3.9"
 services:
       postgres:
         image: postgres
@@ -32,3 +31,19 @@ services:
         image: redis
         ports:
           - 6379:6379
+
+      vernemq:
+        image: vernemq/vernemq:latest
+        container_name: vernemq
+        ports:
+          - 1883:1883
+          - 8080:8080
+          - 8888:8888
+        environment:
+          - DOCKER_VERNEMQ_ACCEPT_EULA=yes
+          - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=off
+          - DOCKER_VERNEMQ_PLUGINS__VMQ_PASSWD=on
+          - DOCKER_VERNEMQ_VMQ_PASSWD__PASSWORD_FILE=/opt/vernemq/etc/vmq.password
+        volumes:
+          - ./vmq.password:/opt/vernemq/etc/vmq.password:ro
+        restart: always
