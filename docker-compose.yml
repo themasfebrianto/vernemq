@@ -1,37 +1,4 @@
 services:
-      postgres:
-        image: postgres
-        ports:
-          - 5432:5432
-        environment:
-          POSTGRES_USER: vmq_test_user
-          POSTGRES_PASSWORD: vmq_test_password
-          POSTGRES_DB: vmq_test_database
-      mysql:
-        image: mysql:5.7.33
-        ports:
-          - 3306:3306
-        environment:
-          MYSQL_RANDOM_ROOT_PASSWORD: "yes"
-          MYSQL_USER: vmq_test_user
-          MYSQL_PASSWORD: vmq_test_password
-          MYSQL_DATABASE: vmq_test_database
-      memcached:
-        image: memcached
-        ports:
-          - 11211:11211
-      mongodb:
-        image: mongo
-        ports:
-          - 27017:27017
-        environment:
-          MONGO_INITDB_ROOT_USERNAME: vmq_test_user
-          MONGO_INITDB_ROOT_PASSWORD: vmq_test_password
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
-
       webhook-auth:
         build:
           context: ./VerneMQWebhookAuth
@@ -51,12 +18,21 @@ services:
         environment:
           - DOCKER_VERNEMQ_ACCEPT_EULA=yes
           - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=off
+          # enable the webhooks plugin
           - DOCKER_VERNEMQ_PLUGINS__VMQ_WEBHOOKS=on
+
+          # cache authentication results for 60 seconds
+          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__CACHE_TIMEOUT=60000
+          
           # Named webhook configs: MYAUTH1 for register, MYAUTH2 for publish, MYAUTH3 for subscribe
           - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH1__HOOK=auth_on_register
           - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH1__ENDPOINT=http://webhook-auth:5000/mqtt/auth
+          
+          # Webhook for publish authorization
           - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH2__HOOK=auth_on_publish
           - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH2__ENDPOINT=http://webhook-auth:5000/mqtt/publish
+          
+          # Webhook for subscribe authorization
           - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH3__HOOK=auth_on_subscribe
           - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH3__ENDPOINT=http://webhook-auth:5000/mqtt/subscribe
         depends_on:
