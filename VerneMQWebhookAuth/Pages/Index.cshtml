@@ -339,7 +339,6 @@
             background: #a1a1a1;
         }
     </style>
-    </style>
 </head>
 
 <body>
@@ -367,17 +366,7 @@
         <!-- Navigation Tabs -->
         <ul class="nav nav-tabs" id="mainTabs" role="tablist">
             <li class="nav-item">
-                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#mqttUsers" type="button">
-                    Users
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#webhooks" type="button">
-                    Webhooks
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#monitoring" type="button">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#monitoring" type="button">
                     Monitoring
                 </button>
             </li>
@@ -386,12 +375,22 @@
                     Logs
                 </button>
             </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#mqttUsers" type="button">
+                    Users
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#webhooks" type="button">
+                    Webhooks
+                </button>
+            </li>
         </ul>
 
         <!-- Tab Contents -->
         <div class="tab-content">
             <!-- MQTT Users Tab -->
-            <div class="tab-pane fade show active" id="mqttUsers">
+            <div class="tab-pane fade" id="mqttUsers">
                 <!-- Stats Cards -->
                 <div class="row g-4 mb-4">
                     <div class="col-6 col-md-3">
@@ -509,134 +508,195 @@
                 </div>
             </div>
 
-            <!-- Monitoring Tab -->
-            <div class="tab-pane fade" id="monitoring">
-                <div class="row g-4">
-                    <div class="col-lg-8">
-                        <div class="monitoring-card">
-                            <h6 class="mb-4 d-flex align-items-center gap-2">
-                                <i class="fas fa-server text-muted"></i>
-                                VerneMQ Performance
-                            </h6>
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <div class="metric-item">
-                                        <div class="metric-label">Active Connections</div>
-                                        <div class="metric-value" id="mqttConnections">-</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="metric-item">
-                                        <div class="metric-label">Subscriptions</div>
-                                        <div class="metric-value" id="mqttSubscriptions">-</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="metric-item">
-                                        <div class="metric-label">Messages / Min</div>
-                                        <div class="metric-value" id="mqttMessages">-</div>
-                                    </div>
-                                </div>
+            <!-- Monitoring Tab (Primary View) -->
+            <div class="tab-pane fade show active" id="monitoring">
+                <!-- Health Status Row -->
+                <div class="row g-4 mb-4">
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card">
+                            <div class="stat-label">
+                                <i class="fas fa-server"></i> VerneMQ
+                            </div>
+                            <div id="vernemqStatusCard" class="d-flex align-items-center gap-2">
+                                <span class="status-dot connected" id="vernemqDot"></span>
+                                <span class="stat-value" style="font-size: 1.25rem; color: var(--success);">Online</span>
                             </div>
                         </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card">
+                            <div class="stat-label">
+                                <i class="fas fa-link"></i> Webhook API
+                            </div>
+                            <div id="webhookStatusCard" class="d-flex align-items-center gap-2">
+                                <span class="status-dot connected" id="webhookDot"></span>
+                                <span class="stat-value" style="font-size: 1.25rem; color: var(--success);">Online</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card">
+                            <div class="stat-label">
+                                <i class="fas fa-clock"></i> Uptime
+                            </div>
+                            <div class="stat-value" style="font-size: 1.25rem;" id="systemUptime">-</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card">
+                            <div class="stat-label">
+                                <i class="fas fa-triangle-exclamation text-danger"></i> Errors (24h)
+                            </div>
+                            <div class="stat-value" style="font-size: 1.25rem;" id="errorCount24h">0</div>
+                        </div>
+                    </div>
+                </div>
 
+                <!-- Activity Metrics Row -->
+                <div class="row g-4 mb-4">
+                    <div class="col-md-4">
+                        <div class="stat-card">
+                            <div class="stat-label">
+                                <i class="fas fa-wifi text-info"></i> Active Connections
+                            </div>
+                            <div class="stat-value" id="mqttConnections">-</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card">
+                            <div class="stat-label">
+                                <i class="fas fa-envelope text-success"></i> Messages/min
+                            </div>
+                            <div class="stat-value" id="mqttMessages">-</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card">
+                            <div class="stat-label">
+                                <i class="fas fa-rss text-warning"></i> Subscriptions
+                            </div>
+                            <div class="stat-value" id="mqttSubscriptions">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <!-- Main Content: Charts & Quick Stats -->
+                    <div class="col-lg-8">
+                        <!-- Live Traffic Charts -->
                         <div class="monitoring-card">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h6 class="mb-0 d-flex align-items-center gap-2">
-                                    <i class="fas fa-chart-line text-muted"></i>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0 d-flex align-items-center gap-2 fw-bold">
+                                    <i class="fas fa-chart-area text-muted"></i>
                                     Live Traffic
                                 </h6>
                                 <a href="http://localhost:3030/d/vernemq-mqtt/vernemq-mqtt-broker" target="_blank" class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-external-link-alt me-1"></i> Grafana
+                                    <i class="fas fa-external-link-alt me-1"></i> Open Grafana
                                 </a>
                             </div>
-                            
-                            <div class="row g-4">
-                                <div class="col-12">
-                                    <div class="grafana-embed" style="height: 240px;">
-                                        <iframe 
-                                            src="http://localhost:3030/d-solo/vernemq-mqtt/vernemq-mqtt-broker?orgId=1&panelId=5&theme=dark&refresh=5s"
-                                            width="100%" height="240" frameborder="0">
-                                        </iframe>
-                                    </div>
-                                    <div class="mt-2 small text-muted">Message Rate (Publish/Delivery per second)</div>
-                                </div>
-                                <div class="col-12">
-                                    <div class="grafana-embed" style="height: 240px;">
-                                        <iframe 
-                                            src="http://localhost:3030/d-solo/vernemq-mqtt/vernemq-mqtt-broker?orgId=1&panelId=6&theme=dark&refresh=5s"
-                                            width="100%" height="240" frameborder="0">
-                                        </iframe>
-                                    </div>
-                                    <div class="mt-2 small text-muted">Connection Rate (Connect/Disconnect per second)</div>
-                                </div>
+                            <div class="grafana-embed mb-3" style="height: 220px;">
+                                <iframe 
+                                    src="http://localhost:3030/d-solo/vernemq-mqtt/vernemq-mqtt-broker?orgId=1&panelId=5&theme=dark&refresh=5s"
+                                    width="100%" height="220" frameborder="0" loading="lazy">
+                                </iframe>
                             </div>
+                            <div class="small text-muted mb-4">Message Rate (Publish/Delivery per second)</div>
 
-                            <div class="row g-3 mt-1">
-                                <div class="col-md-6">
+                            <div class="grafana-embed mb-3" style="height: 220px;">
+                                <iframe 
+                                    src="http://localhost:3030/d-solo/vernemq-mqtt/vernemq-mqtt-broker?orgId=1&panelId=6&theme=dark&refresh=5s"
+                                    width="100%" height="220" frameborder="0" loading="lazy">
+                                </iframe>
+                            </div>
+                            <div class="small text-muted">Connection Rate (Connect/Disconnect per second)</div>
+                        </div>
+
+                        <!-- Message Totals -->
+                        <div class="monitoring-card">
+                            <h6 class="mb-3 d-flex align-items-center gap-2 fw-bold">
+                                <i class="fas fa-arrow-right-arrow-left text-muted"></i>
+                                Message Throughput
+                            </h6>
+                            <div class="row g-3">
+                                <div class="col-6">
                                     <div class="metric-item">
-                                        <div class="metric-label text-muted">Total Received</div>
-                                        <div class="metric-value" id="publishRate" style="font-size: 1.1rem;">-</div>
+                                        <div class="metric-label">Total Received</div>
+                                        <div class="metric-value" id="publishRate">-</div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-6">
                                     <div class="metric-item">
-                                        <div class="metric-label text-muted">Total Sent</div>
-                                        <div class="metric-value" id="subscribeRate" style="font-size: 1.1rem;">-</div>
+                                        <div class="metric-label">Total Sent</div>
+                                        <div class="metric-value" id="subscribeRate">-</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Sidebar: Recent Errors & Endpoints -->
                     <div class="col-lg-4">
+                        <!-- Recent Errors Summary -->
                         <div class="monitoring-card">
-                            <h6 class="mb-4 d-flex align-items-center gap-2">
-                                <i class="fas fa-circle-info text-muted"></i>
-                                System Overview
+                            <h6 class="mb-3 d-flex align-items-center gap-2 fw-bold">
+                                <i class="fas fa-circle-exclamation text-danger"></i>
+                                Recent Errors
                             </h6>
-                            <div class="d-flex flex-column gap-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="small text-secondary fw-medium">VerneMQ Status</span>
-                                    <div id="vernemqStatus" class="fw-bold small text-success">
-                                        <span class="status-dot connected me-1"></span> Online
-                                    </div>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="small text-secondary fw-medium">Webhook Service</span>
-                                    <div id="webhookStatus" class="fw-bold small text-success">
-                                        <span class="status-dot connected me-1"></span> Online
-                                    </div>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="small text-secondary fw-medium">System Uptime</span>
-                                    <span id="systemUptime" class="small fw-bold">-</span>
+                            <div id="recentErrorsList" class="d-flex flex-column gap-2">
+                                <div class="text-muted small text-center py-3">
+                                    <i class="fas fa-check-circle text-success me-1"></i> No recent errors
                                 </div>
                             </div>
-                            
-                            <div class="mt-4 pt-4 border-top">
-                                <h6 class="mb-3 small text-muted fw-bold text-uppercase" style="letter-spacing: 0.05em; font-size: 0.7rem;">Network Endpoints</h6>
-                                <div class="d-flex flex-column gap-2">
-                                    <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                        <span class="small font-monospace">MQTT TCP</span>
-                                        <code class="small text-primary">1883</code>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                        <span class="small font-monospace">WebSocket</span>
-                                        <code class="small text-primary">8080</code>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                        <span class="small font-monospace">Webhook API</span>
-                                        <code class="small text-primary">5000</code>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                        <span class="small font-monospace">Prometheus</span>
-                                        <code class="small text-primary">9090</code>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                        <span class="small font-monospace">Grafana</span>
-                                        <code class="small text-primary">3030</code>
-                                    </div>
+                            <div class="mt-3 pt-3 border-top">
+                                <a href="#logs" class="btn btn-sm btn-outline-secondary w-100" onclick="document.querySelector('[data-bs-target=&#34;#logs&#34;]').click()">
+                                    <i class="fas fa-list me-1"></i> View All Logs
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Network Endpoints -->
+                        <div class="monitoring-card">
+                            <h6 class="mb-3 d-flex align-items-center gap-2 fw-bold">
+                                <i class="fas fa-network-wired text-muted"></i>
+                                Endpoints
+                            </h6>
+                            <div class="d-flex flex-column gap-2">
+                                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                    <span class="small font-monospace">MQTT TCP</span>
+                                    <code class="small text-primary">:1883</code>
                                 </div>
+                                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                    <span class="small font-monospace">WebSocket</span>
+                                    <code class="small text-primary">:8080</code>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                    <span class="small font-monospace">Webhook API</span>
+                                    <code class="small text-primary">:5000</code>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                    <span class="small font-monospace">Prometheus</span>
+                                    <code class="small text-primary">:9090</code>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                    <span class="small font-monospace">Grafana</span>
+                                    <code class="small text-primary">:3030</code>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Links -->
+                        <div class="monitoring-card">
+                            <h6 class="mb-3 d-flex align-items-center gap-2 fw-bold">
+                                <i class="fas fa-bolt text-warning"></i>
+                                Quick Actions
+                            </h6>
+                            <div class="d-grid gap-2">
+                                <a href="http://localhost:9090" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-database me-2"></i> Prometheus
+                                </a>
+                                <a href="http://localhost:3030" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-chart-line me-2"></i> Grafana
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -1230,22 +1290,18 @@
                 if (response.ok) {
                     const metrics = await response.json();
                     
-                    // Update VerneMQ status
-                    const statusEl = document.getElementById('vernemqStatus');
-                    if (metrics.isOnline) {
-                        statusEl.innerHTML = '<span class="status-dot connected me-1"></span> Online';
-                        statusEl.className = 'fw-bold small text-success';
-                    } else {
-                        statusEl.innerHTML = '<span class="status-dot disconnected me-1"></span> Offline';
-                        statusEl.className = 'fw-bold small text-danger';
-                    }
+                    // Update VerneMQ status card
+                    updateStatusCard('vernemq', metrics.isOnline);
                     
-                    // Update metrics
-                    document.getElementById('mqttConnections').textContent = metrics.activeConnections || 0;
-                    document.getElementById('mqttSubscriptions').textContent = metrics.totalSubscriptions || 0;
-                    document.getElementById('mqttMessages').textContent = Math.round(metrics.messagesPerMinute || 0);
-                    document.getElementById('publishRate').textContent = (metrics.messagesReceived / 60).toFixed(1);
-                    document.getElementById('subscribeRate').textContent = (metrics.messagesSent / 60).toFixed(1);
+                    // Webhook API is online if this page loads successfully
+                    updateStatusCard('webhook', true);
+                    
+                    // Update activity metrics
+                    document.getElementById('mqttConnections').textContent = formatNumber(metrics.activeConnections || 0);
+                    document.getElementById('mqttSubscriptions').textContent = formatNumber(metrics.totalSubscriptions || 0);
+                    document.getElementById('mqttMessages').textContent = formatNumber(Math.round(metrics.messagesPerMinute || 0));
+                    document.getElementById('publishRate').textContent = formatNumber(metrics.messagesReceived || 0);
+                    document.getElementById('subscribeRate').textContent = formatNumber(metrics.messagesSent || 0);
                     
                     // Update uptime
                     const uptimeEl = document.getElementById('systemUptime');
@@ -1254,16 +1310,34 @@
                     }
                 } else {
                     console.error('Failed to fetch VerneMQ metrics');
+                    updateStatusCard('vernemq', false);
                 }
             } catch (error) {
                 console.error('Error loading VerneMQ metrics:', error);
-                // Mark as offline on error
-                const statusEl = document.getElementById('vernemqStatus');
-                if (statusEl) {
-                    statusEl.innerHTML = '<span class="status-dot disconnected me-1"></span> Error';
-                    statusEl.className = 'fw-bold small text-danger';
+                updateStatusCard('vernemq', false);
+            }
+        }
+
+        function updateStatusCard(service, isOnline) {
+            const dotEl = document.getElementById(`${service}Dot`);
+            const cardEl = document.getElementById(`${service}StatusCard`);
+            
+            if (dotEl) {
+                dotEl.className = `status-dot ${isOnline ? 'connected' : 'disconnected'}`;
+            }
+            if (cardEl) {
+                const textEl = cardEl.querySelector('.stat-value');
+                if (textEl) {
+                    textEl.textContent = isOnline ? 'Online' : 'Offline';
+                    textEl.style.color = isOnline ? 'var(--success)' : 'var(--danger)';
                 }
             }
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
         }
 
         function formatUptime(timestamp) {
@@ -1279,10 +1353,12 @@
 
         async function loadExecutionLogs() {
             try {
-                const response = await fetch('/api/webhookmanagement/logs?pageSize=20');
+                const response = await fetch('/api/webhookmanagement/logs?pageSize=50');
                 if (response.ok) {
                     const data = await response.json();
-                    displayExecutionLogs(data.items || []);
+                    const logs = data.items || [];
+                    displayExecutionLogs(logs);
+                    updateErrorSummary(logs);
                 }
             } catch (error) {
                 console.error('Error loading logs:', error);
@@ -1310,6 +1386,57 @@
                     <td class="small text-secondary">${log.triggeredBy || '–'}</td>
                 </tr>
             `).join('');
+        }
+
+        function updateErrorSummary(logs) {
+            // Filter errors from last 24 hours
+            const now = new Date();
+            const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000);
+            
+            const recentErrors = logs.filter(log => {
+                const isError = log.status !== 'Success';
+                const logTime = new Date(log.executionTime);
+                return isError && logTime >= oneDayAgo;
+            });
+
+            // Update error count
+            const errorCountEl = document.getElementById('errorCount24h');
+            if (errorCountEl) {
+                errorCountEl.textContent = recentErrors.length;
+                errorCountEl.style.color = recentErrors.length > 0 ? 'var(--danger)' : 'inherit';
+            }
+
+            // Update recent errors list in monitoring tab
+            const errorsListEl = document.getElementById('recentErrorsList');
+            if (errorsListEl) {
+                if (recentErrors.length === 0) {
+                    errorsListEl.innerHTML = `
+                        <div class="text-muted small text-center py-3">
+                            <i class="fas fa-check-circle text-success me-1"></i> No recent errors
+                        </div>
+                    `;
+                } else {
+                    // Show max 5 recent errors
+                    const displayErrors = recentErrors.slice(0, 5);
+                    errorsListEl.innerHTML = displayErrors.map(log => `
+                        <div class="d-flex align-items-center gap-2 p-2 bg-light rounded">
+                            <i class="fas fa-times-circle text-danger" style="font-size: 0.7rem;"></i>
+                            <div class="flex-grow-1">
+                                <div class="small fw-medium text-truncate" style="max-width: 180px;">${log.status}</div>
+                                <div class="small text-muted">${timeAgo(new Date(log.executionTime))}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        function timeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+            return Math.floor(seconds / 86400) + 'd ago';
         }
 
         function getStatusColor(status) {
