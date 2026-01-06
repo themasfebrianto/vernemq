@@ -172,6 +172,122 @@ public class SystemController : ControllerBase
     }
 
     /// <summary>
+    /// Get VerneMQ broker metrics
+    /// </summary>
+    [HttpGet("vernemq-metrics")]
+    public async Task<ActionResult<VerneMQMetricsDto>> GetVerneMQMetrics()
+    {
+        var metrics = new VerneMQMetricsDto
+        {
+            Timestamp = DateTime.UtcNow,
+            IsOnline = false
+        };
+
+        try
+        {
+            // VerneMQ status endpoint - inside Docker network use container name
+            // From outside, use localhost:8888
+            var vernemqHost = Environment.GetEnvironmentVariable("VERNEMQ_HOST") ?? "vernemq";
+            var vernemqPort = Environment.GetEnvironmentVariable("VERNEMQ_METRICS_PORT") ?? "8888";
+            var statusUrl = $"http://{vernemqHost}:{vernemqPort}/status.json";
+
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            
+            try
+            {
+                var response = await httpClient.GetAsync(statusUrl);
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    var status = JsonConvert.DeserializeObject<dynamic>(json);
+                    
+                    metrics.IsOnline = true;
+                    
+                    // Parse VerneMQ status response
+                    if (status != null)
+                    {
+                        // Try to get metrics from the response
+                        try { metrics.ActiveConnections = (int?)status.num_online ?? 0; } catch { }
+                        try { metrics.TotalSubscriptions = (int?)status.num_subscriptions ?? 0; } catch { }
+                        try { metrics.MessagesReceived = (long?)status.router_matches_local ?? 0; } catch { }
+                        try { metrics.MessagesSent = (long?)status.router_matches_remote ?? 0; } catch { }
+                        try { metrics.BytesReceived = (long?)status.bytes_received ?? 0; } catch { }
+                        try { metrics.BytesSent = (long?)status.bytes_sent ?? 0; } catch { }
+                    }
+                }
+            }
+            catch (HttpRequestException)
+            {
+                // VerneMQ might not be accessible, try alternative endpoint
+                _logger.LogWarning("Could not connect to VerneMQ status endpoint at {Url}", statusUrl);
+            }
+
+            // Also try the Prometheus metrics endpoint for more detailed data
+            var metricsUrl = $"http://{vernemqHost}:{vernemqPort}/metrics";
+            try
+            {
+                var metricsResponse = await httpClient.GetAsync(metricsUrl);
+                if (metricsResponse.IsSuccessStatusCode)
+                {
+                    metrics.IsOnline = true;
+                    var metricsText = await metricsResponse.Content.ReadAsStringAsync();
+                    
+                    // Parse VerneMQ Prometheus metrics (actual metric names)
+                    var connReceived = ParsePrometheusMetric(metricsText, "vernemq_mqtt_connect_received");
+                    if (connReceived > 0) metrics.ActiveConnections = (int)connReceived;
+                    
+                    var publishReceived = ParsePrometheusMetric(metricsText, "vernemq_mqtt_publish_received");
+                    var publishSent = ParsePrometheusMetric(metricsText, "vernemq_mqtt_publish_sent");
+                    
+                    if (publishReceived > 0) metrics.MessagesReceived = publishReceived;
+                    if (publishSent > 0) metrics.MessagesSent = publishSent;
+                    
+                    // Get subscriptions
+                    var subscriptions = ParsePrometheusMetric(metricsText, "vernemq_mqtt_subscribe_received");
+                    if (subscriptions > 0) metrics.TotalSubscriptions = (int)subscriptions;
+                    
+                    // Calculate messages per minute
+                    metrics.MessagesPerMinute = (metrics.MessagesReceived + metrics.MessagesSent) / 
+                        Math.Max(1, (DateTime.UtcNow - Process.GetCurrentProcess().StartTime).TotalMinutes);
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogWarning("Could not fetch VerneMQ Prometheus metrics: {Message}", ex.Message);
+            }
+
+            return Ok(metrics);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting VerneMQ metrics");
+            metrics.Error = ex.Message;
+            return Ok(metrics);
+        }
+    }
+
+    private static long ParsePrometheusMetric(string metricsText, string metricName)
+    {
+        try
+        {
+            var lines = metricsText.Split('\n');
+            foreach (var line in lines)
+            {
+                if (line.StartsWith(metricName) && !line.StartsWith("#"))
+                {
+                    var parts = line.Split(' ');
+                    if (parts.Length >= 2 && double.TryParse(parts[^1], out var value))
+                    {
+                        return (long)value;
+                    }
+                }
+            }
+        }
+        catch { }
+        return 0;
+    }
+
+    /// <summary>
     /// Export system data for backup
     /// </summary>
     [HttpPost("backup")]
@@ -526,4 +642,18 @@ public class ApiKeyValidationResult
     public string Username { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
+}
+
+public class VerneMQMetricsDto
+{
+    public DateTime Timestamp { get; set; }
+    public bool IsOnline { get; set; }
+    public int ActiveConnections { get; set; }
+    public int TotalSubscriptions { get; set; }
+    public long MessagesReceived { get; set; }
+    public long MessagesSent { get; set; }
+    public double MessagesPerMinute { get; set; }
+    public long BytesReceived { get; set; }
+    public long BytesSent { get; set; }
+    public string? Error { get; set; }
 }

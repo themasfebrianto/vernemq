@@ -820,19 +820,56 @@
 
         // ========== Monitoring ==========
         async function loadVerneMQMetrics() {
-            // Note: In production, VerneMQ metrics would be fetched from Prometheus
-            // For now, we'll show placeholder data or try to fetch from VerneMQ status endpoint
             try {
-                // Try to fetch from VerneMQ status endpoint (if accessible)
-                // This might fail due to CORS, which is expected
-                document.getElementById('mqttConnections').textContent = '-';
-                document.getElementById('mqttSubscriptions').textContent = '-';
-                document.getElementById('mqttMessages').textContent = '-';
-                document.getElementById('publishRate').textContent = '-';
-                document.getElementById('subscribeRate').textContent = '-';
+                const response = await fetch('/api/system/vernemq-metrics');
+                if (response.ok) {
+                    const metrics = await response.json();
+                    
+                    // Update VerneMQ status
+                    const statusEl = document.getElementById('vernemqStatus');
+                    if (metrics.isOnline) {
+                        statusEl.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem; color: #38ef7d;"></i> Online';
+                        statusEl.className = 'metric-value text-success';
+                    } else {
+                        statusEl.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem; color: #f5576c;"></i> Offline';
+                        statusEl.className = 'metric-value text-danger';
+                    }
+                    
+                    // Update metrics
+                    document.getElementById('mqttConnections').textContent = metrics.activeConnections || 0;
+                    document.getElementById('mqttSubscriptions').textContent = metrics.totalSubscriptions || 0;
+                    document.getElementById('mqttMessages').textContent = Math.round(metrics.messagesPerMinute || 0);
+                    document.getElementById('publishRate').textContent = (metrics.messagesReceived / 60).toFixed(1);
+                    document.getElementById('subscribeRate').textContent = (metrics.messagesSent / 60).toFixed(1);
+                    
+                    // Update uptime
+                    const uptimeEl = document.getElementById('systemUptime');
+                    if (uptimeEl) {
+                        uptimeEl.textContent = formatUptime(metrics.timestamp);
+                    }
+                } else {
+                    console.error('Failed to fetch VerneMQ metrics');
+                }
             } catch (error) {
-                console.log('VerneMQ metrics not accessible from browser (expected)');
+                console.error('Error loading VerneMQ metrics:', error);
+                // Mark as offline on error
+                const statusEl = document.getElementById('vernemqStatus');
+                if (statusEl) {
+                    statusEl.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem; color: #f5576c;"></i> Error';
+                    statusEl.className = 'metric-value text-danger';
+                }
             }
+        }
+
+        function formatUptime(timestamp) {
+            const now = new Date();
+            const start = new Date(timestamp);
+            const diff = Math.floor((now - start) / 1000);
+            
+            if (diff < 60) return `${diff}s`;
+            if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m`;
+            return `${Math.floor(diff / 86400)}d ${Math.floor((diff % 86400) / 3600)}h`;
         }
 
         async function loadExecutionLogs() {
