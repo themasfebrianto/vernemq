@@ -1,0 +1,83 @@
+@* ==========================================================================
+   VerneMQ Dashboard - Users Tab Partial View
+   MQTT User Management
+   ========================================================================== *@
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="status-card">
+            <div class="status-card-label">
+                <i class="fas fa-users-viewfinder text-muted"></i> Total Users
+            </div>
+            <div class="status-card-value" id="totalMqttUsers">0</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="status-card">
+            <div class="status-card-label">
+                <i class="fas fa-circle-check text-success"></i> Active
+            </div>
+            <div class="status-card-value" id="activeMqttUsers">0</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="status-card">
+            <div class="status-card-label">
+                <i class="fas fa-shield-halved text-info"></i> Admins
+            </div>
+            <div class="status-card-value" id="adminMqttUsers">0</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="status-card">
+            <div class="status-card-label">
+                <i class="fas fa-bolt-lightning text-warning"></i> Logins (24h)
+            </div>
+            <div class="status-card-value" id="recentLogins">0</div>
+        </div>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="panel">
+    <div class="panel-header">
+        <div class="d-flex flex-wrap gap-2">
+            <input type="text" 
+                class="form-control search-input" 
+                id="mqttUserSearch" 
+                placeholder="Search users..." 
+                style="width: 280px;">
+            <select class="form-select" id="mqttUserFilter" style="width: 140px;">
+                <option value="">All Status</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createMqttUserModal">
+            <i class="fas fa-plus me-2"></i>New User
+        </button>
+    </div>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>User / Client</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Role</th>
+                    <th>Last Login</th>
+                    <th>Count</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="mqttUserTableBody">
+                <tr>
+                    <td colspan="7" class="text-center py-5">
+                        <div class="spinner-border spinner-border-sm text-muted" role="status"></div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

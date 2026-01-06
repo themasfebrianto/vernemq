@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using VerneMQWebhookAuth.Data;
 using VerneMQWebhookAuth.Models;
 using VerneMQWebhookAuth.Services;
@@ -19,17 +20,24 @@ public class WebhookController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly WebhookDbContext _db;
     private readonly IWebhookTriggerService _webhookTriggerService;
+    private readonly IMemoryCache _cache;
+    
+    // Cache settings
+    private static readonly TimeSpan AuthCacheDuration = TimeSpan.FromMinutes(5);
+    private const string AuthCachePrefix = "auth_";
 
     public WebhookController(
         ILogger<WebhookController> logger, 
         IConfiguration configuration,
         WebhookDbContext db,
-        IWebhookTriggerService webhookTriggerService)
+        IWebhookTriggerService webhookTriggerService,
+        IMemoryCache cache)
     {
         _logger = logger;
         _configuration = configuration;
         _db = db;
         _webhookTriggerService = webhookTriggerService;
+        _cache = cache;
     }
 
     /// <summary>
@@ -58,6 +66,26 @@ public class WebhookController : ControllerBase
             }));
             
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "missing_credentials" } });
+        }
+
+        // Check cache first (cache key includes password hash to invalidate on password change)
+        var cacheKey = $"{AuthCachePrefix}{request.Username}_{request.Password.GetHashCode()}";
+        var versionKey = $"auth_version_{request.Username}";
+        
+        // Check if cache entry exists and version hasn't changed
+        if (_cache.TryGetValue(cacheKey, out (MqttUser User, string Version) cached))
+        {
+            // If version key exists and differs, cache is stale
+            var cachedVersion = _cache.Get<string>(versionKey);
+            if (cachedVersion == null || cachedVersion == cached.Version)
+            {
+                _logger.LogDebug("Auth cache hit for user: {Username}", request.Username);
+                // Update login stats (fire and forget)
+                _ = UpdateLoginStats(cached.User.Id, request.PeerAddr);
+                return Ok(new VerneMQResponse { Result = "ok" });
+            }
+            // Version mismatch - cache is stale, remove it
+            _cache.Remove(cacheKey);
         }
 
         // Query database for user
@@ -122,6 +150,10 @@ public class WebhookController : ControllerBase
 
         // Update login stats (fire and forget, don't wait)
         _ = UpdateLoginStats(user.Id, request.PeerAddr);
+
+        // Cache successful auth for 5 minutes (store with version for invalidation support)
+        var currentVersion = _cache.Get<string>(versionKey) ?? "";
+        _cache.Set(cacheKey, (User: user, Version: currentVersion), AuthCacheDuration);
 
         // Trigger on_auth_success and on_client_connect webhooks
         _ = Task.Run(async () => 

@@ -20,6 +20,9 @@ public class SystemController : ControllerBase
     private readonly ILogger<SystemController> _logger;
     private readonly IConfiguration _configuration;
     private readonly IWebHostEnvironment _environment;
+    
+    // Static field to track application start time (reliable in Docker)
+    private static readonly DateTime AppStartTime = DateTime.UtcNow;
 
     public SystemController(
         WebhookDbContext context,
@@ -56,7 +59,7 @@ public class SystemController : ControllerBase
                 DatabaseSizeBytes = GetDatabaseSize(),
                 LogRetentionDays = int.Parse(_configuration["WebhookSettings:LogRetentionDays"] ?? "30"),
                 MaxConcurrentWebhooks = int.Parse(_configuration["WebhookSettings:MaxConcurrentWebhooks"] ?? "10"),
-                Uptime = DateTime.UtcNow - Process.GetCurrentProcess().StartTime,
+                Uptime = DateTime.UtcNow - AppStartTime,
                 LastExecution = (await _context.WebhookExecutionLogs.OrderByDescending(l => l.ExecutionTime).FirstOrDefaultAsync())?.ExecutionTime,
                 SystemInfo = new SystemInfoDto
                 {

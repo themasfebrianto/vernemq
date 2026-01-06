@@ -1,0 +1,331 @@
+@* ==========================================================================
+   VerneMQ Dashboard - Modal Dialogs Partial View
+   All modal forms for CRUD operations
+   ========================================================================== *@
+
+<!-- Create MQTT User Modal -->
+<div class="modal fade" id="createMqttUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Create MQTT User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createMqttUserForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Username *</label>
+                            <input type="text" class="form-control" name="username" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Password * (min 8 chars)</label>
+                            <input type="password" class="form-control" name="password" required minlength="8">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-control" name="description" 
+                            placeholder="e.g., Temperature Sensor #1">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Allowed Client ID (optional)</label>
+                            <input type="text" class="form-control" name="allowedClientId" 
+                                placeholder="Leave empty to allow any">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Max Connections</label>
+                            <input type="number" class="form-control" name="maxConnections" value="0" min="0">
+                            <small class="text-muted">0 = unlimited</small>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Allowed Publish Topics</label>
+                        <input type="text" class="form-control" name="allowedPublishTopics" 
+                            placeholder="e.g., sensors/#,devices/+/status (empty = all topics)">
+                        <small class="text-muted">Comma-separated. Use + for single-level, # for multi-level wildcard</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Allowed Subscribe Topics</label>
+                        <input type="text" class="form-control" name="allowedSubscribeTopics" 
+                            placeholder="e.g., commands/#,broadcast/# (empty = all topics)">
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="isAdmin" id="isAdminCheck">
+                        <label class="form-check-label" for="isAdminCheck">
+                            Admin user (can access admin/* topics)
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createMqttUser()">
+                    <i class="fas fa-save me-2"></i>Create User
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit MQTT User Modal -->
+<div class="modal fade" id="editMqttUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i>Edit MQTT User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editMqttUserForm">
+                    <input type="hidden" name="id" id="editUserId">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" id="editUsername" readonly disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-control" name="description" id="editDescription">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">New Password (leave empty to keep)</label>
+                            <input type="password" class="form-control" name="newPassword" minlength="8">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Max Connections</label>
+                            <input type="number" class="form-control" name="maxConnections" id="editMaxConnections" min="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Allowed Publish Topics</label>
+                        <input type="text" class="form-control" name="allowedPublishTopics" id="editPublishTopics">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Allowed Subscribe Topics</label>
+                        <input type="text" class="form-control" name="allowedSubscribeTopics" id="editSubscribeTopics">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" name="isAdmin" id="editIsAdmin">
+                                <label class="form-check-label" for="editIsAdmin">Admin user</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" name="isActive" id="editIsActive">
+                                <label class="form-check-label" for="editIsActive">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="updateMqttUser()">
+                    <i class="fas fa-save me-2"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Webhook Modal -->
+<div class="modal fade" id="createWebhookModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-link me-2"></i>Create Webhook</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createWebhookForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Name *</label>
+                            <input type="text" class="form-control" name="name" required placeholder="e.g., Telegram Notification">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">HTTP Method</label>
+                            <select class="form-select" name="httpMethod">
+                                <option value="POST" selected>POST</option>
+                                <option value="GET">GET</option>
+                                <option value="PUT">PUT</option>
+                                <option value="PATCH">PATCH</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">URL *</label>
+                        <input type="url" class="form-control" name="url" required placeholder="https://api.telegram.org/bot.../sendMessage">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-control" name="description" placeholder="Send alert to Telegram when client connects">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Content Type</label>
+                            <select class="form-select" name="contentType">
+                                <option value="application/json" selected>application/json</option>
+                                <option value="application/x-www-form-urlencoded">application/x-www-form-urlencoded</option>
+                                <option value="text/plain">text/plain</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Authentication Type</label>
+                            <select class="form-select" name="authenticationType">
+                                <option value="">None</option>
+                                <option value="bearer">Bearer Token</option>
+                                <option value="basic">Basic Auth</option>
+                                <option value="apikey">API Key</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3" id="authValueContainer" style="display: none;">
+                        <label class="form-label">Authentication Value</label>
+                        <input type="text" class="form-control" name="authenticationValue" placeholder="Token or credentials">
+                        <small class="text-muted">For Basic Auth: username:password</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payload Template (JSON)</label>
+                        <textarea class="form-control font-mono" name="payloadTemplate" rows="4" placeholder='{"chat_id": "123456", "text": "Event: {{event}}"}'></textarea>
+                        <small class="text-muted">Use placeholders like {{event}}, {{username}}, {{timestamp}}</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Trigger Events</label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="triggers" value="on_client_connect" id="trigger_connect">
+                                    <label class="form-check-label" for="trigger_connect">Client Connect</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="triggers" value="on_client_disconnect" id="trigger_disconnect">
+                                    <label class="form-check-label" for="trigger_disconnect">Client Disconnect</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="triggers" value="on_auth_success" id="trigger_auth_success">
+                                    <label class="form-check-label" for="trigger_auth_success">Auth Success</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="triggers" value="on_auth_failed" id="trigger_auth_failed">
+                                    <label class="form-check-label" for="trigger_auth_failed">Auth Failed</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="triggers" value="on_publish" id="trigger_publish">
+                                    <label class="form-check-label" for="trigger_publish">Publish Message</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="triggers" value="on_subscribe" id="trigger_subscribe">
+                                    <label class="form-check-label" for="trigger_subscribe">Subscribe</label>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted">Select which VerneMQ events should trigger this webhook</small>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Timeout (seconds)</label>
+                            <input type="number" class="form-control" name="timeoutSeconds" value="30" min="1" max="300">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Retry Count</label>
+                            <input type="number" class="form-control" name="retryCount" value="3" min="0" max="10">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Retry Delay (seconds)</label>
+                            <input type="number" class="form-control" name="retryDelaySeconds" value="5" min="1" max="60">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createWebhook()">
+                    <i class="fas fa-save me-2"></i>Create Webhook
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Webhook Modal -->
+<div class="modal fade" id="editWebhookModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Webhook</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editWebhookForm">
+                    <input type="hidden" name="id" id="editWebhookId">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-control" name="name" id="editWebhookName">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">HTTP Method</label>
+                            <select class="form-select" name="httpMethod" id="editWebhookMethod">
+                                <option value="POST">POST</option>
+                                <option value="GET">GET</option>
+                                <option value="PUT">PUT</option>
+                                <option value="PATCH">PATCH</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">URL</label>
+                        <input type="url" class="form-control" name="url" id="editWebhookUrl">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-control" name="description" id="editWebhookDescription">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payload Template</label>
+                        <textarea class="form-control font-mono" name="payloadTemplate" id="editWebhookPayload" rows="4"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Timeout (seconds)</label>
+                            <input type="number" class="form-control" name="timeoutSeconds" id="editWebhookTimeout" min="1" max="300">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Retry Count</label>
+                            <input type="number" class="form-control" name="retryCount" id="editWebhookRetry" min="0" max="10">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Retry Delay (seconds)</label>
+                            <input type="number" class="form-control" name="retryDelaySeconds" id="editWebhookRetryDelay" min="1" max="60">
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="isActive" id="editWebhookActive">
+                        <label class="form-check-label" for="editWebhookActive">Active</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="updateWebhook()">
+                    <i class="fas fa-save me-2"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

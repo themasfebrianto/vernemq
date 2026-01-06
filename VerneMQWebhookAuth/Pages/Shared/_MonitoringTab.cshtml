@@ -1,0 +1,381 @@
+@* ==========================================================================
+   VerneMQ Dashboard - Monitoring Tab Partial View
+   A control center view for system health, traffic, and actionable signals
+   ========================================================================== *@
+
+<!-- Critical Alerts Container (dynamically populated) -->
+<div id="criticalAlertsContainer"></div>
+
+<!-- Section: System Health Overview -->
+<div class="monitoring-section">
+    <div class="monitoring-section-title">
+        <i class="fas fa-heart-pulse"></i> System Health
+    </div>
+    
+    <div class="row g-3">
+        <!-- VerneMQ Broker Status -->
+        <div class="col-6 col-lg-3">
+            <div class="status-card">
+                <div class="status-card-label">
+                    <i class="fas fa-server"></i> VerneMQ Broker
+                </div>
+                <div id="vernemqStatusCard" class="d-flex align-items-center gap-2 mt-2">
+                    <span class="status-dot online pulsing" id="vernemqDot"></span>
+                    <span class="status-card-value text-success">Online</span>
+                </div>
+                <div class="status-card-meta" id="vernemqVersion">v1.x</div>
+            </div>
+        </div>
+        
+        <!-- Webhook API Status -->
+        <div class="col-6 col-lg-3">
+            <div class="status-card">
+                <div class="status-card-label">
+                    <i class="fas fa-link"></i> Webhook API
+                </div>
+                <div id="webhookStatusCard" class="d-flex align-items-center gap-2 mt-2">
+                    <span class="status-dot online pulsing" id="webhookDot"></span>
+                    <span class="status-card-value text-success">Online</span>
+                </div>
+                <div class="status-card-meta" id="webhookLatency">Latency: --</div>
+            </div>
+        </div>
+        
+        <!-- System Uptime -->
+        <div class="col-6 col-lg-3">
+            <div class="status-card">
+                <div class="status-card-label">
+                    <i class="fas fa-clock"></i> System Uptime
+                </div>
+                <div class="status-card-value mt-2" id="systemUptime">-</div>
+                <div class="status-card-meta" id="lastRefresh">Last check: --</div>
+            </div>
+        </div>
+        
+        <!-- Webhook Health Score -->
+        <div class="col-6 col-lg-3">
+            <div class="status-card d-flex align-items-center gap-3">
+                <div class="health-ring">
+                    <svg width="88" height="88" viewBox="0 0 88 88">
+                        <circle class="health-ring-bg" cx="44" cy="44" r="38"></circle>
+                        <circle class="health-ring-progress" cx="44" cy="44" r="38" 
+                            stroke-dasharray="239" stroke-dashoffset="239" id="healthScoreProgress"></circle>
+                    </svg>
+                    <div class="health-ring-content">
+                        <span class="health-ring-value" id="healthScoreValue">--%</span>
+                        <span class="health-ring-label">Health</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="small fw-semibold text-secondary">Success Rate</div>
+                    <div class="small text-muted" id="healthScoreDetails">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section: Key Metrics -->
+<div class="monitoring-section">
+    <div class="monitoring-section-title">
+        <i class="fas fa-chart-simple"></i> Key Metrics
+    </div>
+    
+    <div class="row g-3">
+        <!-- Active Connections -->
+        <div class="col-6 col-lg-3">
+            <div class="metric-card accent-left accent-info" id="connectionsCard">
+                <i class="fas fa-wifi metric-card-icon"></i>
+                <div class="metric-label">
+                    <i class="fas fa-wifi text-info"></i> Active Connections
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="metric-value" id="mqttConnections">-</span>
+                    <span class="metric-trend neutral" id="connectionsTrend">
+                        <i class="fas fa-minus"></i> --
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Messages/min -->
+        <div class="col-6 col-lg-3">
+            <div class="metric-card accent-left accent-success" id="messagesCard">
+                <i class="fas fa-envelope metric-card-icon"></i>
+                <div class="metric-label">
+                    <i class="fas fa-envelope text-success"></i> Messages/min
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="metric-value" id="mqttMessages">-</span>
+                    <span class="metric-trend neutral" id="messagesTrend">
+                        <i class="fas fa-minus"></i> --
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Subscriptions -->
+        <div class="col-6 col-lg-3">
+            <div class="metric-card accent-left accent-warning" id="subscriptionsCard">
+                <i class="fas fa-rss metric-card-icon"></i>
+                <div class="metric-label">
+                    <i class="fas fa-rss text-warning"></i> Subscriptions
+                </div>
+                <div class="metric-value" id="mqttSubscriptions">-</div>
+            </div>
+        </div>
+        
+        <!-- Errors (24h) -->
+        <div class="col-6 col-lg-3">
+            <div class="metric-card accent-left accent-danger" id="errorsCard">
+                <i class="fas fa-triangle-exclamation metric-card-icon"></i>
+                <div class="metric-label">
+                    <i class="fas fa-triangle-exclamation text-danger"></i> Errors (24h)
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="metric-value" id="errorCount24h">0</span>
+                    <span class="metric-trend neutral" id="errorsTrend">
+                        <i class="fas fa-minus"></i> --
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section: Health Signals -->
+<div class="monitoring-section">
+    <div class="monitoring-section-title">
+        <i class="fas fa-heart"></i> Health Signals
+    </div>
+    
+    <div class="signal-grid" id="healthSignalsContainer">
+        <div class="signal-item healthy" id="signalAuth">
+            <span class="signal-dot healthy"></span>
+            <div class="signal-content">
+                <div class="signal-title">Authentication</div>
+                <div class="signal-detail" id="signalAuthDetails">All OK</div>
+            </div>
+        </div>
+        
+        <div class="signal-item healthy" id="signalWebhooks">
+            <span class="signal-dot healthy"></span>
+            <div class="signal-content">
+                <div class="signal-title">Webhooks</div>
+                <div class="signal-detail" id="signalWebhooksDetails">All OK</div>
+            </div>
+        </div>
+        
+        <div class="signal-item healthy" id="signalLatency">
+            <span class="signal-dot healthy"></span>
+            <div class="signal-content">
+                <div class="signal-title">Avg Response</div>
+                <div class="signal-detail" id="signalLatencyDetails">--ms</div>
+            </div>
+        </div>
+        
+        <div class="signal-item healthy" id="signalQueue">
+            <span class="signal-dot healthy"></span>
+            <div class="signal-content">
+                <div class="signal-title">Queue Status</div>
+                <div class="signal-detail" id="signalQueueDetails">Clear</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
+<div class="row g-4">
+    <!-- Left Column: Charts & Throughput -->
+    <div class="col-lg-8">
+        <!-- Live Traffic Panel -->
+        <div class="panel mb-4">
+            <div class="panel-header">
+                <h6 class="panel-title">
+                    <i class="fas fa-chart-area"></i>
+                    Live Traffic
+                    <span class="badge badge-neutral ms-2">Real-time</span>
+                </h6>
+                <a href="http://localhost:3030/d/vernemq-mqtt/vernemq-mqtt-broker" target="_blank" 
+                    class="btn btn-sm btn-outline">
+                    <i class="fas fa-external-link-alt me-1"></i> Open Grafana
+                </a>
+            </div>
+            <div class="panel-body">
+                <div class="chart-container mb-3" style="height: 220px;">
+                    <iframe 
+                        src="http://localhost:3030/d-solo/vernemq-mqtt/vernemq-mqtt-broker?orgId=1&panelId=5&theme=dark&refresh=5s"
+                        width="100%" height="220" frameborder="0" loading="lazy">
+                    </iframe>
+                </div>
+                <div class="chart-label">Message Rate (Publish/Delivery per second)</div>
+                
+                <div class="chart-container mb-3 mt-4" style="height: 220px;">
+                    <iframe 
+                        src="http://localhost:3030/d-solo/vernemq-mqtt/vernemq-mqtt-broker?orgId=1&panelId=6&theme=dark&refresh=5s"
+                        width="100%" height="220" frameborder="0" loading="lazy">
+                    </iframe>
+                </div>
+                <div class="chart-label">Connection Rate (Connect/Disconnect per second)</div>
+            </div>
+        </div>
+        
+        <!-- Message Throughput Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h6 class="panel-title">
+                    <i class="fas fa-arrow-right-arrow-left"></i>
+                    Message Throughput (Lifetime)
+                </h6>
+            </div>
+            <div class="panel-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="p-3 bg-success-subtle rounded-3">
+                            <div class="metric-label">
+                                <i class="fas fa-arrow-down text-success"></i> Total Received
+                            </div>
+                            <div class="metric-value" id="publishRate">-</div>
+                            <div class="small text-muted mt-1" id="publishRateBytes">-- bytes</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 bg-info-subtle rounded-3" style="background: var(--color-info-bg);">
+                            <div class="metric-label">
+                                <i class="fas fa-arrow-up text-info"></i> Total Sent
+                            </div>
+                            <div class="metric-value" id="subscribeRate">-</div>
+                            <div class="small text-muted mt-1" id="subscribeRateBytes">-- bytes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column: Sidebar Panels -->
+    <div class="col-lg-4">
+        <!-- Recent Errors Panel -->
+        <div class="panel mb-4">
+            <div class="panel-header">
+                <h6 class="panel-title">
+                    <i class="fas fa-circle-exclamation text-danger"></i>
+                    Recent Errors
+                </h6>
+                <span class="badge badge-neutral" id="errorBadge">0</span>
+            </div>
+            <div class="panel-body">
+                <div id="recentErrorsList" class="error-list">
+                    <div class="empty-state" style="padding: 1rem;">
+                        <i class="fas fa-check-circle text-success"></i>
+                        <span class="ms-2">No recent errors</span>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button class="btn btn-sm btn-outline w-100" 
+                    onclick="document.querySelector('[data-bs-target=&quot;#logs&quot;]').click()">
+                    <i class="fas fa-list me-1"></i> View All Logs
+                </button>
+            </div>
+        </div>
+        
+        <!-- Security Monitor Panel -->
+        <div class="panel mb-4">
+            <div class="panel-header">
+                <h6 class="panel-title">
+                    <i class="fas fa-shield-halved text-warning"></i>
+                    Security Monitor
+                </h6>
+            </div>
+            <div class="panel-body">
+                <div class="stats-list">
+                    <div class="stats-list-item">
+                        <span class="stats-list-label">Failed Auth (24h)</span>
+                        <span class="stats-list-value" id="failedAuthCount">0</span>
+                    </div>
+                    <div class="stats-list-item">
+                        <span class="stats-list-label">Blocked IPs</span>
+                        <span class="stats-list-value" id="blockedIpsCount">0</span>
+                    </div>
+                    <div class="stats-list-item">
+                        <span class="stats-list-label">Active Sessions</span>
+                        <span class="stats-list-value" id="activeSessionsCount">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Service Endpoints Panel -->
+        <div class="panel mb-4">
+            <div class="panel-header">
+                <h6 class="panel-title">
+                    <i class="fas fa-network-wired"></i>
+                    Service Endpoints
+                </h6>
+            </div>
+            <div class="panel-body">
+                <div class="endpoint-list">
+                    <div class="endpoint-item">
+                        <div class="endpoint-name">
+                            <span class="status-dot online" style="width: 6px; height: 6px;"></span>
+                            MQTT TCP
+                        </div>
+                        <span class="endpoint-port">:1883</span>
+                    </div>
+                    <div class="endpoint-item">
+                        <div class="endpoint-name">
+                            <span class="status-dot online" style="width: 6px; height: 6px;"></span>
+                            WebSocket
+                        </div>
+                        <span class="endpoint-port">:8080</span>
+                    </div>
+                    <div class="endpoint-item">
+                        <div class="endpoint-name">
+                            <span class="status-dot online" style="width: 6px; height: 6px;" id="webhookEndpointDot"></span>
+                            Webhook API
+                        </div>
+                        <span class="endpoint-port">:5000</span>
+                    </div>
+                    <div class="endpoint-item">
+                        <div class="endpoint-name">
+                            <span class="status-dot online" style="width: 6px; height: 6px;"></span>
+                            Prometheus
+                        </div>
+                        <span class="endpoint-port">:9090</span>
+                    </div>
+                    <div class="endpoint-item">
+                        <div class="endpoint-name">
+                            <span class="status-dot online" style="width: 6px; height: 6px;"></span>
+                            Grafana
+                        </div>
+                        <span class="endpoint-port">:3030</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h6 class="panel-title">
+                    <i class="fas fa-bolt text-warning"></i>
+                    Quick Actions
+                </h6>
+            </div>
+            <div class="panel-body">
+                <div class="action-grid">
+                    <a href="http://localhost:9090" target="_blank" class="action-btn">
+                        <i class="fas fa-database"></i> Prometheus
+                    </a>
+                    <a href="http://localhost:3030" target="_blank" class="action-btn">
+                        <i class="fas fa-chart-line"></i> Grafana
+                    </a>
+                    <button class="action-btn" onclick="refreshAllData()">
+                        <i class="fas fa-sync"></i> Refresh All Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

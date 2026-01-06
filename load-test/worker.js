@@ -1,15 +1,17 @@
 /**
  * VerneMQ Load Testing Worker - RTU Power Meter Simulator
  * 
- * Simulates 5 RTU devices publishing power meter data to VerneMQ
+ * Simulates multiple RTU devices publishing power meter data to VerneMQ
  * 
  * Usage: node worker.js [options]
  * 
  * Options:
  *   --host       MQTT broker host (default: localhost)
  *   --port       MQTT broker port (default: 1883)
- *   --interval   Message interval in ms (default: 5000)
- *   --duration   Test duration in seconds (default: 300)
+ *   --clients    Number of RTU clients to simulate (default: 10)
+ *   --interval   Message interval in ms (default: 1000)
+ *   --duration   Test duration in seconds (default: 60)
+ *   --qos        QoS level 0, 1, or 2 (default: 1)
  */
 
 const mqtt = require('mqtt');
@@ -18,25 +20,35 @@ const mqtt = require('mqtt');
 const args = process.argv.slice(2);
 const getArg = (name, defaultValue) => {
     const index = args.indexOf(`--${name}`);
-    return index !== -1 ? args[index + 1] : defaultValue;
+    if (index !== -1 && args[index + 1]) {
+        return args[index + 1];
+    }
+    return defaultValue;
 };
 
 // Configuration
 const config = {
     host: getArg('host', 'localhost'),
     port: parseInt(getArg('port', '1883')),
-    messageInterval: parseInt(getArg('interval', '5000')),
-    duration: parseInt(getArg('duration', '300')),
+    clients: parseInt(getArg('clients', '10')),
+    messageInterval: parseInt(getArg('interval', '1000')),
+    duration: parseInt(getArg('duration', '60')),
+    qos: parseInt(getArg('qos', '1')),
 };
 
-// RTU IDs
-const rtuIds = [
-    '250901000001',
-    '250901000002',
-    '250901000003',
-    '250901000004',
-    '250901000005',
-];
+// Generate RTU IDs dynamically based on client count
+function generateRtuIds(count) {
+    const ids = [];
+    const today = new Date();
+    const prefix = `${today.getFullYear().toString().slice(-2)}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+
+    for (let i = 1; i <= count; i++) {
+        ids.push(`${prefix}${String(i).padStart(6, '0')}`);
+    }
+    return ids;
+}
+
+const rtuIds = generateRtuIds(config.clients);
 
 // Test user credentials
 const credentials = { username: 'testuser', password: 'testpass' };
@@ -45,6 +57,7 @@ const credentials = { username: 'testuser', password: 'testpass' };
 const stats = {
     connected: 0,
     messagesPublished: 0,
+    messagesReceived: 0,
     errors: 0,
     startTime: null,
 };
@@ -77,7 +90,7 @@ function generateRtuData(rtuId) {
     const powerFactorL2 = rand(0.85, 0.99);
     const powerFactorL3 = rand(0.85, 0.99);
 
-    // Active Power (kW) = V * I * PF / 1000
+    // Active Power (kW)
     const activePowerL1 = rand(1, 10);
     const activePowerL2 = rand(1, 10);
     const activePowerL3 = rand(1, 10);
@@ -93,13 +106,11 @@ function generateRtuData(rtuId) {
     const apparentPowerL3 = rand(1, 12);
     const apparentPowerTotal = parseFloat((apparentPowerL1 + apparentPowerL2 + apparentPowerL3).toFixed(2));
 
-    // Harmonic currents F1 (fundamental)
+    // Harmonic currents
     const currentL1F1 = rand(8, 45);
     const currentL2F1 = rand(8, 45);
     const currentL3F1 = rand(8, 45);
     const currentNF1 = rand(0, 3);
-
-    // Harmonic currents F2 (2nd harmonic, usually smaller)
     const currentL1F2 = rand(0.1, 2);
     const currentL2F2 = rand(0.1, 2);
     const currentL3F2 = rand(0.1, 2);
@@ -162,14 +173,16 @@ function createRtuClient(rtuId, index) {
 
     client.on('connect', () => {
         stats.connected++;
-        console.log(`✅ RTU ${rtuId} connected`);
+
+        // Subscribe to a topic to also receive messages
+        client.subscribe(`rtu/+/data`, { qos: config.qos });
 
         // Publish data at interval
         publishInterval = setInterval(() => {
             const data = generateRtuData(rtuId);
             const topic = `rtu/${rtuId}/data`;
 
-            client.publish(topic, JSON.stringify(data), { qos: 1 }, (err) => {
+            client.publish(topic, JSON.stringify(data), { qos: config.qos }, (err) => {
                 if (err) {
                     stats.errors++;
                 } else {
@@ -177,6 +190,10 @@ function createRtuClient(rtuId, index) {
                 }
             });
         }, config.messageInterval);
+    });
+
+    client.on('message', () => {
+        stats.messagesReceived++;
     });
 
     client.on('error', (error) => {
@@ -195,54 +212,54 @@ function createRtuClient(rtuId, index) {
 function printStats() {
     const elapsed = ((Date.now() - stats.startTime) / 1000).toFixed(0);
     const remaining = Math.max(0, config.duration - elapsed);
+    const pubRate = stats.messagesPublished / Math.max(1, elapsed);
+    const recvRate = stats.messagesReceived / Math.max(1, elapsed);
 
     console.clear();
     console.log('');
     console.log('╔══════════════════════════════════════════════════════════════╗');
-    console.log('║        RTU Power Meter Simulator - VerneMQ Load Test         ║');
+    console.log('║         VerneMQ Load Testing Worker                          ║');
     console.log('╠══════════════════════════════════════════════════════════════╣');
-    console.log(`║  Broker:      ${config.host}:${config.port}`.padEnd(65) + '║');
-    console.log(`║  RTU Count:   ${rtuIds.length}`.padEnd(65) + '║');
+    console.log(`║  Host:        ${config.host}:${config.port}`.padEnd(65) + '║');
+    console.log(`║  Clients:     ${config.clients}`.padEnd(65) + '║');
     console.log(`║  Interval:    ${config.messageInterval}ms`.padEnd(65) + '║');
+    console.log(`║  Duration:    ${config.duration}s`.padEnd(65) + '║');
+    console.log(`║  QoS:         ${config.qos}`.padEnd(65) + '║');
     console.log('╠══════════════════════════════════════════════════════════════╣');
     console.log(`║  ⏱️  Elapsed:     ${elapsed}s / ${config.duration}s`.padEnd(63) + '║');
     console.log(`║  ⏳ Remaining:   ${remaining}s`.padEnd(63) + '║');
-    console.log(`║  🔗 Connected:   ${stats.connected} / ${rtuIds.length}`.padEnd(63) + '║');
-    console.log(`║  📤 Published:   ${stats.messagesPublished} messages`.padEnd(63) + '║');
+    console.log(`║  🔗 Connected:   ${stats.connected} / ${config.clients}`.padEnd(63) + '║');
+    console.log(`║  📤 Published:   ${stats.messagesPublished}`.padEnd(63) + '║');
+    console.log(`║  📥 Received:    ${stats.messagesReceived}`.padEnd(63) + '║');
+    console.log(`║  ⚡ Pub Rate:    ${pubRate.toFixed(1)} msg/sec`.padEnd(63) + '║');
+    console.log(`║  📊 Recv Rate:   ${recvRate.toFixed(1)} msg/sec`.padEnd(63) + '║');
     console.log(`║  ❌ Errors:      ${stats.errors}`.padEnd(63) + '║');
-    console.log('╠══════════════════════════════════════════════════════════════╣');
-    console.log('║  RTU IDs:                                                    ║');
-    rtuIds.forEach(id => {
-        console.log(`║    • ${id}`.padEnd(65) + '║');
-    });
     console.log('╚══════════════════════════════════════════════════════════════╝');
     console.log('');
     console.log('Press Ctrl+C to stop');
 }
 
-// Show sample data
-function showSampleData() {
-    const sample = generateRtuData(rtuIds[0]);
-    console.log('');
-    console.log('📊 Sample RTU Data:');
-    console.log(JSON.stringify(sample, null, 2));
-    console.log('');
-}
-
 // Main function
 async function main() {
     console.log('');
-    console.log('🚀 Starting RTU Power Meter Simulator...');
-    console.log(`   Simulating ${rtuIds.length} RTU devices...`);
-
-    showSampleData();
+    console.log('╔══════════════════════════════════════════════════════════════╗');
+    console.log('║         VerneMQ Load Testing Worker                          ║');
+    console.log('╠══════════════════════════════════════════════════════════════╣');
+    console.log(`║  Starting ${config.clients} clients...`.padEnd(65) + '║');
+    console.log(`║  Interval: ${config.messageInterval}ms, Duration: ${config.duration}s, QoS: ${config.qos}`.padEnd(65) + '║');
+    console.log('╚══════════════════════════════════════════════════════════════╝');
+    console.log('');
 
     stats.startTime = Date.now();
 
-    // Create clients for each RTU
+    // Create clients with staggered connection (slower stagger to avoid auth timeouts)
+    const connectionDelay = Math.max(200, 10000 / config.clients); // At least 200ms between connections
+
     for (let i = 0; i < rtuIds.length; i++) {
         clients.push(createRtuClient(rtuIds[i], i));
-        await new Promise(resolve => setTimeout(resolve, 200));
+        if (i < rtuIds.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, connectionDelay));
+        }
     }
 
     // Print stats every second
@@ -261,13 +278,19 @@ async function main() {
         });
 
         setTimeout(() => {
+            const finalPubRate = stats.messagesPublished / config.duration;
+            const finalRecvRate = stats.messagesReceived / config.duration;
+
             console.log('');
             console.log('════════════════════════════════════════════════════════════════');
             console.log('                        FINAL RESULTS                           ');
             console.log('════════════════════════════════════════════════════════════════');
             console.log(`  Duration:          ${config.duration} seconds`);
-            console.log(`  RTU Devices:       ${rtuIds.length}`);
+            console.log(`  Clients:           ${config.clients}`);
             console.log(`  Total Published:   ${stats.messagesPublished} messages`);
+            console.log(`  Total Received:    ${stats.messagesReceived} messages`);
+            console.log(`  Avg Pub Rate:      ${finalPubRate.toFixed(1)} msg/sec`);
+            console.log(`  Avg Recv Rate:     ${finalRecvRate.toFixed(1)} msg/sec`);
             console.log(`  Errors:            ${stats.errors}`);
             console.log('════════════════════════════════════════════════════════════════');
             process.exit(0);

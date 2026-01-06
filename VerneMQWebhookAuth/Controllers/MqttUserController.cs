@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using VerneMQWebhookAuth.Data;
 using VerneMQWebhookAuth.Models;
 
@@ -16,11 +17,30 @@ public class MqttUserController : ControllerBase
 {
     private readonly ILogger<MqttUserController> _logger;
     private readonly WebhookDbContext _db;
+    private readonly IMemoryCache _cache;
+    
+    // Same prefix as WebhookController for auth cache
+    private const string AuthCachePrefix = "auth_";
 
-    public MqttUserController(ILogger<MqttUserController> logger, WebhookDbContext db)
+    public MqttUserController(ILogger<MqttUserController> logger, WebhookDbContext db, IMemoryCache cache)
     {
         _logger = logger;
         _db = db;
+        _cache = cache;
+    }
+    
+    /// <summary>
+    /// Invalidate all cached auth entries for a specific username.
+    /// Since cache keys include password hash, we need to iterate and remove matching entries.
+    /// This is a simple approach - for production, consider a more sophisticated cache key strategy.
+    /// </summary>
+    private void InvalidateUserAuthCache(string username)
+    {
+        // MemoryCache doesn't support key enumeration, so we use a marker approach
+        // Set a "version" that gets checked on auth - simpler than trying to remove specific entries
+        var versionKey = $"auth_version_{username}";
+        _cache.Set(versionKey, Guid.NewGuid().ToString(), TimeSpan.FromMinutes(10));
+        _logger.LogInformation("Invalidated auth cache for user: {Username}", username);
     }
 
     /// <summary>
@@ -255,6 +275,9 @@ public class MqttUserController : ControllerBase
             user.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
+            
+            // Invalidate auth cache for this user
+            InvalidateUserAuthCache(user.Username);
 
             _logger.LogInformation("Updated MQTT user: {Username}", user.Username);
 
@@ -299,6 +322,9 @@ public class MqttUserController : ControllerBase
 
             _db.MqttUsers.Remove(user);
             await _db.SaveChangesAsync();
+            
+            // Invalidate auth cache for this user
+            InvalidateUserAuthCache(user.Username);
 
             _logger.LogInformation("Deleted MQTT user: {Username}", user.Username);
 
@@ -328,6 +354,9 @@ public class MqttUserController : ControllerBase
             user.IsActive = !user.IsActive;
             user.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+            
+            // Invalidate auth cache for this user
+            InvalidateUserAuthCache(user.Username);
 
             _logger.LogInformation("Toggled MQTT user {Username} active status to {IsActive}", 
                 user.Username, user.IsActive);
@@ -379,6 +408,9 @@ public class MqttUserController : ControllerBase
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
             user.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+            
+            // Invalidate auth cache for this user
+            InvalidateUserAuthCache(user.Username);
 
             _logger.LogInformation("Reset password for MQTT user: {Username}", user.Username);
 

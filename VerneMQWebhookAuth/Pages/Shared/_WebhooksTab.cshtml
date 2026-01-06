@@ -1,0 +1,37 @@
+@* ==========================================================================
+   VerneMQ Dashboard - Webhooks Tab Partial View
+   Outbound Webhook Management
+   ========================================================================== *@
+
+<div class="panel">
+    <div class="panel-header">
+        <div>
+            <h6 class="panel-title mb-1">Outbound Webhooks</h6>
+            <p class="small text-secondary mb-0">Send notifications to external services when VerneMQ events occur.</p>
+        </div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createWebhookModal">
+            <i class="fas fa-plus me-2"></i>New Webhook
+        </button>
+    </div>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>URL</th>
+                    <th>Method</th>
+                    <th>Status</th>
+                    <th>Last Executed</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="webhookTableBody">
+                <tr>
+                    <td colspan="6" class="text-center py-5">
+                        <div class="spinner-border spinner-border-sm text-muted" role="status"></div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

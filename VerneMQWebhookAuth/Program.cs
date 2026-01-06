@@ -22,6 +22,9 @@ builder.Host.UseSerilog();
 builder.Services.AddControllers();
 builder.Services.AddRazorPages();
 builder.Services.AddEndpointsApiExplorer();
+
+// Add Memory Cache for auth caching
+builder.Services.AddMemoryCache();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
@@ -131,6 +134,9 @@ else
 {
     app.UseCors("Production");
 }
+
+// Enable serving static files from wwwroot
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -164,12 +164,12 @@
             "pluginVersion": "10.0.0",
             "targets": [
                 {
-                    "expr": "rate(vernemq_mqtt_publish_received[1m])",
+                    "expr": "sum(rate(vernemq_mqtt_publish_received[1m]))",
                     "legendFormat": "Publish Rate",
                     "refId": "A"
                 },
                 {
-                    "expr": "rate(vernemq_mqtt_publish_sent[1m])",
+                    "expr": "sum(rate(vernemq_mqtt_publish_sent[1m]))",
                     "legendFormat": "Delivery Rate",
                     "refId": "B"
                 }
@@ -200,12 +200,12 @@
             "pluginVersion": "10.0.0",
             "targets": [
                 {
-                    "expr": "rate(vernemq_mqtt_connect_received[1m])",
+                    "expr": "sum(rate(vernemq_mqtt_connect_received[1m]))",
                     "legendFormat": "Connection Rate",
                     "refId": "A"
                 },
                 {
-                    "expr": "rate(vernemq_mqtt_disconnect_received[1m])",
+                    "expr": "sum(rate(vernemq_mqtt_disconnect_received[1m]))",
                     "legendFormat": "Disconnect Rate",
                     "refId": "B"
                 }
@@ -282,17 +282,17 @@
             "pluginVersion": "10.0.0",
             "targets": [
                 {
-                    "expr": "rate(vernemq_webhooks_on_register_requests[1m])",
+                    "expr": "sum(rate(vernemq_webhooks_on_register_requests[1m]))",
                     "legendFormat": "Auth Requests",
                     "refId": "A"
                 },
                 {
-                    "expr": "rate(vernemq_webhooks_on_publish_requests[1m])",
+                    "expr": "sum(rate(vernemq_webhooks_on_publish_requests[1m]))",
                     "legendFormat": "Publish Auth",
                     "refId": "B"
                 },
                 {
-                    "expr": "rate(vernemq_webhooks_on_subscribe_requests[1m])",
+                    "expr": "sum(rate(vernemq_webhooks_on_subscribe_requests[1m]))",
                     "legendFormat": "Subscribe Auth",
                     "refId": "C"
                 }
