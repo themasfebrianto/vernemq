@@ -211,6 +211,23 @@ public class WebhookManagementController : ControllerBase
             _context.Webhooks.Add(webhook);
             await _context.SaveChangesAsync();
 
+            // Create triggers if specified
+            if (request.Triggers != null && request.Triggers.Any())
+            {
+                foreach (var triggerType in request.Triggers)
+                {
+                    var trigger = new WebhookTrigger
+                    {
+                        WebhookId = webhook.Id,
+                        TriggerType = triggerType,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.WebhookTriggers.Add(trigger);
+                }
+                await _context.SaveChangesAsync();
+            }
+
             var result = new WebhookDto
             {
                 Id = webhook.Id,
@@ -753,6 +770,11 @@ public class CreateWebhookRequest
 
     [Range(1, 60)]
     public int RetryDelaySeconds { get; set; } = 5;
+
+    /// <summary>
+    /// List of trigger event types (e.g., on_client_connect, on_auth_failed)
+    /// </summary>
+    public List<string>? Triggers { get; set; }
 }
 
 public class UpdateWebhookRequest

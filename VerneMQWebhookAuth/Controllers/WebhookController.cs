@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VerneMQWebhookAuth.Data;
 using VerneMQWebhookAuth.Models;
+using VerneMQWebhookAuth.Services;
 
 namespace VerneMQWebhookAuth.Controllers;
 
@@ -17,15 +18,18 @@ public class WebhookController : ControllerBase
     private readonly ILogger<WebhookController> _logger;
     private readonly IConfiguration _configuration;
     private readonly WebhookDbContext _db;
+    private readonly IWebhookTriggerService _webhookTriggerService;
 
     public WebhookController(
         ILogger<WebhookController> logger, 
         IConfiguration configuration,
-        WebhookDbContext db)
+        WebhookDbContext db,
+        IWebhookTriggerService webhookTriggerService)
     {
         _logger = logger;
         _configuration = configuration;
         _db = db;
+        _webhookTriggerService = webhookTriggerService;
     }
 
     /// <summary>
@@ -42,6 +46,17 @@ public class WebhookController : ControllerBase
         if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
         {
             _logger.LogWarning("Auth failed - Missing username or password");
+            
+            // Trigger on_auth_failed webhook
+            _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnAuthFailed, new WebhookEventData
+            {
+                Event = WebhookEvents.OnAuthFailed,
+                ClientId = request.ClientId,
+                Username = request.Username,
+                PeerAddr = request.PeerAddr,
+                ErrorReason = "missing_credentials"
+            }));
+            
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "missing_credentials" } });
         }
 
@@ -52,6 +67,17 @@ public class WebhookController : ControllerBase
         if (user == null)
         {
             _logger.LogWarning("Auth failed - User not found: {Username}", request.Username);
+            
+            // Trigger on_auth_failed webhook
+            _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnAuthFailed, new WebhookEventData
+            {
+                Event = WebhookEvents.OnAuthFailed,
+                ClientId = request.ClientId,
+                Username = request.Username,
+                PeerAddr = request.PeerAddr,
+                ErrorReason = "invalid_credentials"
+            }));
+            
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "invalid_credentials" } });
         }
 
@@ -59,6 +85,17 @@ public class WebhookController : ControllerBase
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
             _logger.LogWarning("Auth failed - Invalid password for user: {Username}", request.Username);
+            
+            // Trigger on_auth_failed webhook
+            _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnAuthFailed, new WebhookEventData
+            {
+                Event = WebhookEvents.OnAuthFailed,
+                ClientId = request.ClientId,
+                Username = request.Username,
+                PeerAddr = request.PeerAddr,
+                ErrorReason = "invalid_credentials"
+            }));
+            
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "invalid_credentials" } });
         }
 
@@ -69,11 +106,42 @@ public class WebhookController : ControllerBase
             _logger.LogWarning(
                 "Auth failed - ClientId mismatch for user: {Username}. Expected: {Expected}, Got: {Got}",
                 request.Username, user.AllowedClientId, request.ClientId);
+            
+            // Trigger on_auth_failed webhook
+            _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnAuthFailed, new WebhookEventData
+            {
+                Event = WebhookEvents.OnAuthFailed,
+                ClientId = request.ClientId,
+                Username = request.Username,
+                PeerAddr = request.PeerAddr,
+                ErrorReason = "client_id_mismatch"
+            }));
+            
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "client_id_mismatch" } });
         }
 
         // Update login stats (fire and forget, don't wait)
         _ = UpdateLoginStats(user.Id, request.PeerAddr);
+
+        // Trigger on_auth_success and on_client_connect webhooks
+        _ = Task.Run(async () => 
+        {
+            await _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnAuthSuccess, new WebhookEventData
+            {
+                Event = WebhookEvents.OnAuthSuccess,
+                ClientId = request.ClientId,
+                Username = request.Username,
+                PeerAddr = request.PeerAddr
+            });
+            
+            await _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnClientConnect, new WebhookEventData
+            {
+                Event = WebhookEvents.OnClientConnect,
+                ClientId = request.ClientId,
+                Username = request.Username,
+                PeerAddr = request.PeerAddr
+            });
+        });
 
         _logger.LogInformation("Auth successful for user: {Username}", request.Username);
         return Ok(new VerneMQResponse { Result = "ok" });
@@ -120,6 +188,18 @@ public class WebhookController : ControllerBase
         }
 
         _logger.LogInformation("Publish allowed for user: {Username} on topic: {Topic}", request.Username, request.Topic);
+        
+        // Trigger on_publish webhook
+        _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnPublish, new WebhookEventData
+        {
+            Event = WebhookEvents.OnPublish,
+            ClientId = request.ClientId,
+            Username = request.Username,
+            PeerAddr = request.PeerAddr,
+            Topic = request.Topic,
+            Payload = request.Payload
+        }));
+        
         return Ok(new VerneMQResponse { Result = "ok" });
     }
 
@@ -171,6 +251,17 @@ public class WebhookController : ControllerBase
         }
 
         _logger.LogInformation("Subscribe allowed for user: {Username}", request.Username);
+        
+        // Trigger on_subscribe webhook
+        _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnSubscribe, new WebhookEventData
+        {
+            Event = WebhookEvents.OnSubscribe,
+            ClientId = request.ClientId,
+            Username = request.Username,
+            PeerAddr = request.PeerAddr,
+            Topic = string.Join(", ", request.Topics?.Select(t => t.Topic) ?? Array.Empty<string>())
+        }));
+        
         return Ok(new VerneMQResponse { Result = "ok" });
     }
 

@@ -868,6 +868,48 @@
                             <textarea class="form-control font-monospace" name="payloadTemplate" rows="4" placeholder='{"chat_id": "123456", "text": "Event: {{event}}"}'></textarea>
                             <small class="text-muted">Use placeholders like {{event}}, {{username}}, {{timestamp}}</small>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">Trigger Events</label>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="triggers" value="on_client_connect" id="trigger_connect">
+                                        <label class="form-check-label" for="trigger_connect">Client Connect</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="triggers" value="on_client_disconnect" id="trigger_disconnect">
+                                        <label class="form-check-label" for="trigger_disconnect">Client Disconnect</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="triggers" value="on_auth_success" id="trigger_auth_success">
+                                        <label class="form-check-label" for="trigger_auth_success">Auth Success</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="triggers" value="on_auth_failed" id="trigger_auth_failed">
+                                        <label class="form-check-label" for="trigger_auth_failed">Auth Failed</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="triggers" value="on_publish" id="trigger_publish">
+                                        <label class="form-check-label" for="trigger_publish">Publish Message</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="triggers" value="on_subscribe" id="trigger_subscribe">
+                                        <label class="form-check-label" for="trigger_subscribe">Subscribe</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="text-muted">Select which VerneMQ events should trigger this webhook</small>
+                        </div>
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">Timeout (seconds)</label>
@@ -1374,6 +1416,13 @@
         async function createWebhook() {
             const form = document.getElementById('createWebhookForm');
             const formData = new FormData(form);
+            
+            // Collect checked triggers
+            const triggers = [];
+            form.querySelectorAll('input[name="triggers"]:checked').forEach(cb => {
+                triggers.push(cb.value);
+            });
+            
             const data = {
                 name: formData.get('name'),
                 url: formData.get('url'),
@@ -1385,7 +1434,8 @@
                 payloadTemplate: formData.get('payloadTemplate') || null,
                 timeoutSeconds: parseInt(formData.get('timeoutSeconds')) || 30,
                 retryCount: parseInt(formData.get('retryCount')) || 3,
-                retryDelaySeconds: parseInt(formData.get('retryDelaySeconds')) || 5
+                retryDelaySeconds: parseInt(formData.get('retryDelaySeconds')) || 5,
+                triggers: triggers.length > 0 ? triggers : null
             };
 
             try {

@@ -93,6 +93,10 @@ builder.Services.AddHealthChecks()
 // Add SignalR for real-time updates
 builder.Services.AddSignalR();
 
+// Add WebhookTriggerService
+builder.Services.AddScoped<VerneMQWebhookAuth.Services.IWebhookTriggerService, 
+    VerneMQWebhookAuth.Services.WebhookTriggerService>();
+
 var app = builder.Build();
 
 // Initialize database
