@@ -25,8 +25,10 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-# Create necessary directories
-RUN mkdir -p /app/logs
+# Create necessary directories and set permissions
+# SQLite needs write access to create the database file
+RUN mkdir -p /app/logs /app/data && \
+    chown -R app:app /app
 
 # Set environment variables for production
 ENV ASPNETCORE_ENVIRONMENT=Production
