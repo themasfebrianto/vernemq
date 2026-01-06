@@ -280,13 +280,165 @@
         }
 
         .status-dot.connected { background: var(--success); box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
-        .status-dot.disconnected { background: var(--danger); }
+        .status-dot.disconnected { background: var(--danger); box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+        .status-dot.warning { background: var(--warning); box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
+        .status-dot.pulsing { animation: pulse 2s ease-in-out infinite; }
+        @@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
         .grafana-embed {
             border: 1px solid var(--border-color);
             border-radius: var(--radius-md);
             overflow: hidden;
             background: #000;
+        }
+
+        /* Critical Alert Banner */
+        .alert-banner {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 1px solid #fecaca;
+            border-left: 4px solid var(--danger);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            animation: slideIn 0.3s ease-out;
+        }
+        .alert-banner.warning {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border-color: #fde68a;
+            border-left-color: var(--warning);
+        }
+        .alert-banner.success {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border-color: #a7f3d0;
+            border-left-color: var(--success);
+        }
+        @@keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .alert-banner .alert-icon {
+            font-size: 1.5rem;
+        }
+        .alert-banner .alert-content {
+            flex: 1;
+        }
+        .alert-banner .alert-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.25rem;
+        }
+        .alert-banner .alert-message {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .alert-banner .alert-action {
+            white-space: nowrap;
+        }
+
+        /* Health Score Ring */
+        .health-score {
+            position: relative;
+            width: 100px;
+            height: 100px;
+        }
+        .health-score svg {
+            transform: rotate(-90deg);
+        }
+        .health-score-bg {
+            fill: none;
+            stroke: #e5e7eb;
+            stroke-width: 8;
+        }
+        .health-score-progress {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease-out, stroke 0.3s ease;
+        }
+        .health-score-value {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .health-score-percentage {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+        }
+        .health-score-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        /* Signal Indicator */
+        .signal-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--radius-md);
+            background: #f9fafb;
+            border: 1px solid var(--border-color);
+        }
+        .signal-indicator.critical {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+        .signal-indicator.warning {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .signal-indicator.healthy {
+            background: #ecfdf5;
+            border-color: #a7f3d0;
+        }
+        .signal-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .signal-dot.critical { background: var(--danger); }
+        .signal-dot.warning { background: var(--warning); }
+        .signal-dot.healthy { background: var(--success); }
+
+        /* Metric Trend */
+        .metric-trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.15rem 0.5rem;
+            border-radius: 20px;
+        }
+        .metric-trend.up { background: #ecfdf5; color: #047857; }
+        .metric-trend.down { background: #fef2f2; color: #dc2626; }
+        .metric-trend.neutral { background: #f3f4f6; color: #6b7280; }
+
+        /* Critical Stats Card */
+        .critical-stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .critical-stat-card.danger { border-left: 4px solid var(--danger); }
+        .critical-stat-card.warning { border-left: 4px solid var(--warning); }
+        .critical-stat-card.success { border-left: 4px solid var(--success); }
+        .critical-stat-card .stat-icon {
+            position: absolute;
+            right: 1rem;
+            top: 1rem;
+            font-size: 2rem;
+            opacity: 0.1;
         }
 
         /* Modals */
@@ -510,72 +662,168 @@
 
             <!-- Monitoring Tab (Primary View) -->
             <div class="tab-pane fade show active" id="monitoring">
-                <!-- Health Status Row -->
+                <!-- Critical Alerts Section (dynamically shown when issues exist) -->
+                <div id="criticalAlertsContainer"></div>
+
+                <!-- System Health Overview Row -->
                 <div class="row g-4 mb-4">
+                    <!-- VerneMQ Status -->
                     <div class="col-6 col-lg-3">
-                        <div class="stat-card">
+                        <div class="stat-card" id="vernemqCard">
                             <div class="stat-label">
-                                <i class="fas fa-server"></i> VerneMQ
+                                <i class="fas fa-server"></i> VerneMQ Broker
                             </div>
-                            <div id="vernemqStatusCard" class="d-flex align-items-center gap-2">
-                                <span class="status-dot connected" id="vernemqDot"></span>
+                            <div id="vernemqStatusCard" class="d-flex align-items-center gap-2 mt-2">
+                                <span class="status-dot connected pulsing" id="vernemqDot"></span>
                                 <span class="stat-value" style="font-size: 1.25rem; color: var(--success);">Online</span>
                             </div>
+                            <div class="small text-muted mt-2" id="vernemqVersion">v1.x</div>
                         </div>
                     </div>
+                    <!-- Webhook API Status -->
                     <div class="col-6 col-lg-3">
-                        <div class="stat-card">
+                        <div class="stat-card" id="webhookCard">
                             <div class="stat-label">
                                 <i class="fas fa-link"></i> Webhook API
                             </div>
-                            <div id="webhookStatusCard" class="d-flex align-items-center gap-2">
-                                <span class="status-dot connected" id="webhookDot"></span>
+                            <div id="webhookStatusCard" class="d-flex align-items-center gap-2 mt-2">
+                                <span class="status-dot connected pulsing" id="webhookDot"></span>
                                 <span class="stat-value" style="font-size: 1.25rem; color: var(--success);">Online</span>
                             </div>
+                            <div class="small text-muted mt-2" id="webhookLatency">Latency: --</div>
                         </div>
                     </div>
+                    <!-- System Uptime -->
                     <div class="col-6 col-lg-3">
                         <div class="stat-card">
                             <div class="stat-label">
-                                <i class="fas fa-clock"></i> Uptime
+                                <i class="fas fa-clock"></i> System Uptime
                             </div>
-                            <div class="stat-value" style="font-size: 1.25rem;" id="systemUptime">-</div>
+                            <div class="stat-value mt-2" style="font-size: 1.25rem;" id="systemUptime">-</div>
+                            <div class="small text-muted mt-2" id="lastRefresh">Last check: --</div>
                         </div>
                     </div>
+                    <!-- Webhook Health Score -->
                     <div class="col-6 col-lg-3">
-                        <div class="stat-card">
-                            <div class="stat-label">
-                                <i class="fas fa-triangle-exclamation text-danger"></i> Errors (24h)
+                        <div class="stat-card d-flex align-items-center gap-3">
+                            <div class="health-score" id="healthScoreRing">
+                                <svg width="100" height="100" viewBox="0 0 100 100">
+                                    <circle class="health-score-bg" cx="50" cy="50" r="42"></circle>
+                                    <circle class="health-score-progress" cx="50" cy="50" r="42" 
+                                        stroke="#10b981" stroke-dasharray="264" stroke-dashoffset="264" id="healthScoreProgress"></circle>
+                                </svg>
+                                <div class="health-score-value">
+                                    <span class="health-score-percentage" id="healthScoreValue">--%</span>
+                                    <span class="health-score-label">Health</span>
+                                </div>
                             </div>
-                            <div class="stat-value" style="font-size: 1.25rem;" id="errorCount24h">0</div>
+                            <div>
+                                <div class="small fw-bold text-secondary">Webhook Success Rate</div>
+                                <div class="small text-muted" id="healthScoreDetails">Loading...</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Activity Metrics Row -->
+                <!-- Critical Metrics Row -->
                 <div class="row g-4 mb-4">
-                    <div class="col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-label">
+                    <div class="col-md-3 col-6">
+                        <div class="critical-stat-card" id="connectionsCard">
+                            <i class="fas fa-wifi stat-icon text-info"></i>
+                            <div class="stat-label mb-1">
                                 <i class="fas fa-wifi text-info"></i> Active Connections
                             </div>
-                            <div class="stat-value" id="mqttConnections">-</div>
+                            <div class="d-flex align-items-end gap-2">
+                                <span class="stat-value" id="mqttConnections">-</span>
+                                <span class="metric-trend neutral" id="connectionsTrend">
+                                    <i class="fas fa-minus"></i> --
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-label">
+                    <div class="col-md-3 col-6">
+                        <div class="critical-stat-card" id="messagesCard">
+                            <i class="fas fa-envelope stat-icon text-success"></i>
+                            <div class="stat-label mb-1">
                                 <i class="fas fa-envelope text-success"></i> Messages/min
                             </div>
-                            <div class="stat-value" id="mqttMessages">-</div>
+                            <div class="d-flex align-items-end gap-2">
+                                <span class="stat-value" id="mqttMessages">-</span>
+                                <span class="metric-trend neutral" id="messagesTrend">
+                                    <i class="fas fa-minus"></i> --
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-label">
+                    <div class="col-md-3 col-6">
+                        <div class="critical-stat-card" id="subscriptionsCard">
+                            <i class="fas fa-rss stat-icon text-warning"></i>
+                            <div class="stat-label mb-1">
                                 <i class="fas fa-rss text-warning"></i> Subscriptions
                             </div>
-                            <div class="stat-value" id="mqttSubscriptions">-</div>
+                            <div class="d-flex align-items-end gap-2">
+                                <span class="stat-value" id="mqttSubscriptions">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="critical-stat-card" id="errorsCard">
+                            <i class="fas fa-triangle-exclamation stat-icon text-danger"></i>
+                            <div class="stat-label mb-1">
+                                <i class="fas fa-triangle-exclamation text-danger"></i> Errors (24h)
+                            </div>
+                            <div class="d-flex align-items-end gap-2">
+                                <span class="stat-value" id="errorCount24h">0</span>
+                                <span class="metric-trend neutral" id="errorsTrend">
+                                    <i class="fas fa-minus"></i> --
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Health Signals -->
+                <div class="monitoring-card mb-4">
+                    <h6 class="mb-3 d-flex align-items-center gap-2 fw-bold">
+                        <i class="fas fa-heartbeat text-danger"></i>
+                        System Health Signals
+                    </h6>
+                    <div class="row g-3" id="healthSignalsContainer">
+                        <div class="col-md-3 col-6">
+                            <div class="signal-indicator healthy" id="signalAuth">
+                                <span class="signal-dot healthy"></span>
+                                <div>
+                                    <div class="small fw-bold">Authentication</div>
+                                    <div class="small text-muted" id="signalAuthDetails">All OK</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="signal-indicator healthy" id="signalWebhooks">
+                                <span class="signal-dot healthy"></span>
+                                <div>
+                                    <div class="small fw-bold">Webhooks</div>
+                                    <div class="small text-muted" id="signalWebhooksDetails">All OK</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="signal-indicator healthy" id="signalLatency">
+                                <span class="signal-dot healthy"></span>
+                                <div>
+                                    <div class="small fw-bold">Avg Response</div>
+                                    <div class="small text-muted" id="signalLatencyDetails">--ms</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="signal-indicator healthy" id="signalQueue">
+                                <span class="signal-dot healthy"></span>
+                                <div>
+                                    <div class="small fw-bold">Queue Status</div>
+                                    <div class="small text-muted" id="signalQueueDetails">Clear</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -589,6 +837,7 @@
                                 <h6 class="mb-0 d-flex align-items-center gap-2 fw-bold">
                                     <i class="fas fa-chart-area text-muted"></i>
                                     Live Traffic
+                                    <span class="badge bg-secondary ms-2" style="font-size: 0.65rem;">Real-time</span>
                                 </h6>
                                 <a href="http://localhost:3030/d/vernemq-mqtt/vernemq-mqtt-broker" target="_blank" class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-external-link-alt me-1"></i> Open Grafana
@@ -611,23 +860,29 @@
                             <div class="small text-muted">Connection Rate (Connect/Disconnect per second)</div>
                         </div>
 
-                        <!-- Message Totals -->
+                        <!-- Message Throughput with Enhanced Details -->
                         <div class="monitoring-card">
                             <h6 class="mb-3 d-flex align-items-center gap-2 fw-bold">
                                 <i class="fas fa-arrow-right-arrow-left text-muted"></i>
-                                Message Throughput
+                                Message Throughput (Lifetime)
                             </h6>
                             <div class="row g-3">
                                 <div class="col-6">
                                     <div class="metric-item">
-                                        <div class="metric-label">Total Received</div>
+                                        <div class="metric-label">
+                                            <i class="fas fa-arrow-down text-success me-1"></i>Total Received
+                                        </div>
                                         <div class="metric-value" id="publishRate">-</div>
+                                        <div class="small text-muted mt-1" id="publishRateBytes">-- bytes</div>
                                     </div>
                                 </div>
                                 <div class="col-6">
                                     <div class="metric-item">
-                                        <div class="metric-label">Total Sent</div>
+                                        <div class="metric-label">
+                                            <i class="fas fa-arrow-up text-info me-1"></i>Total Sent
+                                        </div>
                                         <div class="metric-value" id="subscribeRate">-</div>
+                                        <div class="small text-muted mt-1" id="subscribeRateBytes">-- bytes</div>
                                     </div>
                                 </div>
                             </div>
@@ -636,13 +891,16 @@
 
                     <!-- Sidebar: Recent Errors & Endpoints -->
                     <div class="col-lg-4">
-                        <!-- Recent Errors Summary -->
+                        <!-- Recent Errors Summary (Enhanced) -->
                         <div class="monitoring-card">
-                            <h6 class="mb-3 d-flex align-items-center gap-2 fw-bold">
-                                <i class="fas fa-circle-exclamation text-danger"></i>
-                                Recent Errors
-                            </h6>
-                            <div id="recentErrorsList" class="d-flex flex-column gap-2">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0 d-flex align-items-center gap-2 fw-bold">
+                                    <i class="fas fa-circle-exclamation text-danger"></i>
+                                    Recent Errors
+                                </h6>
+                                <span class="badge bg-secondary" id="errorBadge">0</span>
+                            </div>
+                            <div id="recentErrorsList" class="d-flex flex-column gap-2" style="max-height: 200px; overflow-y: auto;">
                                 <div class="text-muted small text-center py-3">
                                     <i class="fas fa-check-circle text-success me-1"></i> No recent errors
                                 </div>
@@ -654,37 +912,74 @@
                             </div>
                         </div>
 
+                        <!-- Failed Auth Attempts (Security Signal) -->
+                        <div class="monitoring-card">
+                            <h6 class="mb-3 d-flex align-items-center gap-2 fw-bold">
+                                <i class="fas fa-shield-halved text-warning"></i>
+                                Security Monitor
+                            </h6>
+                            <div class="d-flex flex-column gap-2">
+                                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                    <span class="small">Failed Auth (24h)</span>
+                                    <span class="fw-bold" id="failedAuthCount">0</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                    <span class="small">Blocked IPs</span>
+                                    <span class="fw-bold" id="blockedIpsCount">0</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                    <span class="small">Active Sessions</span>
+                                    <span class="fw-bold" id="activeSessionsCount">-</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Network Endpoints -->
                         <div class="monitoring-card">
                             <h6 class="mb-3 d-flex align-items-center gap-2 fw-bold">
                                 <i class="fas fa-network-wired text-muted"></i>
-                                Endpoints
+                                Service Endpoints
                             </h6>
                             <div class="d-flex flex-column gap-2">
                                 <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                    <span class="small font-monospace">MQTT TCP</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="status-dot connected" style="width: 6px; height: 6px;"></span>
+                                        <span class="small font-monospace">MQTT TCP</span>
+                                    </div>
                                     <code class="small text-primary">:1883</code>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                    <span class="small font-monospace">WebSocket</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="status-dot connected" style="width: 6px; height: 6px;"></span>
+                                        <span class="small font-monospace">WebSocket</span>
+                                    </div>
                                     <code class="small text-primary">:8080</code>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                    <span class="small font-monospace">Webhook API</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="status-dot connected" style="width: 6px; height: 6px;" id="webhookEndpointDot"></span>
+                                        <span class="small font-monospace">Webhook API</span>
+                                    </div>
                                     <code class="small text-primary">:5000</code>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                    <span class="small font-monospace">Prometheus</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="status-dot connected" style="width: 6px; height: 6px;"></span>
+                                        <span class="small font-monospace">Prometheus</span>
+                                    </div>
                                     <code class="small text-primary">:9090</code>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                    <span class="small font-monospace">Grafana</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="status-dot connected" style="width: 6px; height: 6px;"></span>
+                                        <span class="small font-monospace">Grafana</span>
+                                    </div>
                                     <code class="small text-primary">:3030</code>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Quick Links -->
+                        <!-- Quick Actions -->
                         <div class="monitoring-card">
                             <h6 class="mb-3 d-flex align-items-center gap-2 fw-bold">
                                 <i class="fas fa-bolt text-warning"></i>
@@ -697,6 +992,9 @@
                                 <a href="http://localhost:3030" target="_blank" class="btn btn-sm btn-outline-secondary">
                                     <i class="fas fa-chart-line me-2"></i> Grafana
                                 </a>
+                                <button class="btn btn-sm btn-outline-primary" onclick="refreshAllData()">
+                                    <i class="fas fa-sync me-2"></i> Refresh All Data
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1284,9 +1582,20 @@
         }
 
         // ========== Monitoring ==========
+        // Store previous values for trends
+        let previousMetrics = {
+            connections: 0,
+            messages: 0,
+            errors: 0
+        };
+        let systemStats = null;
+
         async function loadVerneMQMetrics() {
+            const startTime = Date.now();
             try {
                 const response = await fetch('/api/system/vernemq-metrics');
+                const latency = Date.now() - startTime;
+                
                 if (response.ok) {
                     const metrics = await response.json();
                     
@@ -1296,25 +1605,226 @@
                     // Webhook API is online if this page loads successfully
                     updateStatusCard('webhook', true);
                     
-                    // Update activity metrics
-                    document.getElementById('mqttConnections').textContent = formatNumber(metrics.activeConnections || 0);
+                    // Update latency display
+                    const webhookLatencyEl = document.getElementById('webhookLatency');
+                    if (webhookLatencyEl) {
+                        webhookLatencyEl.textContent = `Latency: ${latency}ms`;
+                    }
+                    
+                    // Update activity metrics with trends
+                    const currentConnections = metrics.activeConnections || 0;
+                    const currentMessages = Math.round(metrics.messagesPerMinute || 0);
+                    
+                    updateMetricWithTrend('mqttConnections', 'connectionsTrend', currentConnections, previousMetrics.connections);
+                    updateMetricWithTrend('mqttMessages', 'messagesTrend', currentMessages, previousMetrics.messages);
                     document.getElementById('mqttSubscriptions').textContent = formatNumber(metrics.totalSubscriptions || 0);
-                    document.getElementById('mqttMessages').textContent = formatNumber(Math.round(metrics.messagesPerMinute || 0));
+                    
+                    // Update throughput with bytes
                     document.getElementById('publishRate').textContent = formatNumber(metrics.messagesReceived || 0);
                     document.getElementById('subscribeRate').textContent = formatNumber(metrics.messagesSent || 0);
+                    document.getElementById('publishRateBytes').textContent = formatBytes(metrics.bytesReceived || 0);
+                    document.getElementById('subscribeRateBytes').textContent = formatBytes(metrics.bytesSent || 0);
+                    
+                    // Update active sessions
+                    const activeSessionsEl = document.getElementById('activeSessionsCount');
+                    if (activeSessionsEl) {
+                        activeSessionsEl.textContent = formatNumber(currentConnections);
+                    }
+                    
+                    // Store for next comparison
+                    previousMetrics.connections = currentConnections;
+                    previousMetrics.messages = currentMessages;
                     
                     // Update uptime
                     const uptimeEl = document.getElementById('systemUptime');
                     if (uptimeEl) {
                         uptimeEl.textContent = formatUptime(metrics.timestamp);
                     }
+                    
+                    // Update last refresh time
+                    const lastRefreshEl = document.getElementById('lastRefresh');
+                    if (lastRefreshEl) {
+                        lastRefreshEl.textContent = 'Last check: ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    }
+                    
+                    // Update signal for latency
+                    updateSignalIndicator('signalLatency', latency, [200, 500], `${latency}ms`);
+                    
                 } else {
                     console.error('Failed to fetch VerneMQ metrics');
                     updateStatusCard('vernemq', false);
+                    showCriticalAlert('vernemq-offline', 'VerneMQ Broker Offline', 
+                        'Unable to connect to VerneMQ. Check if the broker is running.', 'danger');
                 }
             } catch (error) {
                 console.error('Error loading VerneMQ metrics:', error);
                 updateStatusCard('vernemq', false);
+                showCriticalAlert('vernemq-error', 'VerneMQ Connection Error', 
+                    error.message, 'danger');
+            }
+        }
+
+        async function loadSystemStatistics() {
+            try {
+                const response = await fetch('/api/system/statistics');
+                if (response.ok) {
+                    systemStats = await response.json();
+                    
+                    // Update health score
+                    updateHealthScore(systemStats.successRate || 0, systemStats.totalExecutions || 0);
+                    
+                    // Update failed auth count (from recent failures)
+                    const failedAuthEl = document.getElementById('failedAuthCount');
+                    if (failedAuthEl) {
+                        failedAuthEl.textContent = systemStats.failedExecutions || 0;
+                    }
+                    
+                    // Update webhook signal
+                    const failureRate = systemStats.totalExecutions > 0 
+                        ? ((systemStats.failedExecutions / systemStats.totalExecutions) * 100) 
+                        : 0;
+                    updateSignalIndicator('signalWebhooks', failureRate, [5, 15], 
+                        failureRate > 0 ? `${failureRate.toFixed(1)}% fail` : 'All OK', true);
+                    
+                    // Update pending queue signal
+                    const pendingEl = document.getElementById('signalQueueDetails');
+                    if (pendingEl) {
+                        const pending = systemStats.pendingExecutions || 0;
+                        pendingEl.textContent = pending > 0 ? `${pending} pending` : 'Clear';
+                        updateSignalIndicator('signalQueue', pending, [5, 20], 
+                            pending > 0 ? `${pending} pending` : 'Clear');
+                    }
+                    
+                    // Update response time signal
+                    const avgResponse = systemStats.averageResponseTimeMs || 0;
+                    updateSignalIndicator('signalLatency', avgResponse, [500, 2000], 
+                        avgResponse > 0 ? `${Math.round(avgResponse)}ms` : '--ms');
+                }
+            } catch (error) {
+                console.error('Error loading system statistics:', error);
+            }
+        }
+
+        function updateMetricWithTrend(metricId, trendId, current, previous) {
+            const metricEl = document.getElementById(metricId);
+            const trendEl = document.getElementById(trendId);
+            
+            if (metricEl) {
+                metricEl.textContent = formatNumber(current);
+            }
+            
+            if (trendEl && previous > 0) {
+                const diff = current - previous;
+                const percentChange = ((diff / previous) * 100).toFixed(0);
+                
+                if (diff > 0) {
+                    trendEl.className = 'metric-trend up';
+                    trendEl.innerHTML = `<i class="fas fa-arrow-up"></i> +${percentChange}%`;
+                } else if (diff < 0) {
+                    trendEl.className = 'metric-trend down';
+                    trendEl.innerHTML = `<i class="fas fa-arrow-down"></i> ${percentChange}%`;
+                } else {
+                    trendEl.className = 'metric-trend neutral';
+                    trendEl.innerHTML = `<i class="fas fa-minus"></i> 0%`;
+                }
+            }
+        }
+
+        function updateHealthScore(successRate, totalExecutions) {
+            const progressEl = document.getElementById('healthScoreProgress');
+            const valueEl = document.getElementById('healthScoreValue');
+            const detailsEl = document.getElementById('healthScoreDetails');
+            
+            if (progressEl && valueEl) {
+                const circumference = 2 * Math.PI * 42; // r=42
+                const offset = circumference - (successRate / 100) * circumference;
+                
+                progressEl.style.strokeDashoffset = offset;
+                valueEl.textContent = `${Math.round(successRate)}%`;
+                
+                // Color based on score
+                let color = '#10b981'; // green
+                if (successRate < 95) color = '#f59e0b'; // warning
+                if (successRate < 80) color = '#ef4444'; // danger
+                
+                progressEl.style.stroke = color;
+                valueEl.style.color = color;
+            }
+            
+            if (detailsEl) {
+                detailsEl.textContent = totalExecutions > 0 
+                    ? `${totalExecutions} total executions`
+                    : 'No executions yet';
+            }
+        }
+
+        function updateSignalIndicator(signalId, value, thresholds, detailText, inverted = false) {
+            const signalEl = document.getElementById(signalId);
+            const detailsEl = document.getElementById(signalId + 'Details');
+            
+            if (!signalEl) return;
+            
+            let status = 'healthy';
+            if (inverted) {
+                // Higher is worse (e.g., failure rate)
+                if (value > thresholds[1]) status = 'critical';
+                else if (value > thresholds[0]) status = 'warning';
+            } else {
+                // Higher is worse for some metrics (e.g., latency)
+                if (value > thresholds[1]) status = 'critical';
+                else if (value > thresholds[0]) status = 'warning';
+            }
+            
+            signalEl.className = `signal-indicator ${status}`;
+            const dotEl = signalEl.querySelector('.signal-dot');
+            if (dotEl) {
+                dotEl.className = `signal-dot ${status}`;
+            }
+            
+            if (detailsEl && detailText) {
+                detailsEl.textContent = detailText;
+            }
+        }
+
+        function showCriticalAlert(id, title, message, type = 'danger') {
+            const container = document.getElementById('criticalAlertsContainer');
+            if (!container) return;
+            
+            // Check if alert already exists
+            const existingAlert = document.getElementById(`alert-${id}`);
+            if (existingAlert) return;
+            
+            const alertHtml = `
+                <div class="alert-banner ${type === 'warning' ? 'warning' : ''}" id="alert-${id}">
+                    <div class="alert-icon ${type === 'danger' ? 'text-danger' : 'text-warning'}">
+                        <i class="fas ${type === 'danger' ? 'fa-circle-exclamation' : 'fa-triangle-exclamation'}"></i>
+                    </div>
+                    <div class="alert-content">
+                        <div class="alert-title">${title}</div>
+                        <div class="alert-message">${message}</div>
+                    </div>
+                    <div class="alert-action">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="dismissAlert('${id}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', alertHtml);
+        }
+
+        function dismissAlert(id) {
+            const alert = document.getElementById(`alert-${id}`);
+            if (alert) {
+                alert.remove();
+            }
+        }
+
+        function clearAlert(id) {
+            const alert = document.getElementById(`alert-${id}`);
+            if (alert) {
+                alert.remove();
             }
         }
 
@@ -1323,7 +1833,7 @@
             const cardEl = document.getElementById(`${service}StatusCard`);
             
             if (dotEl) {
-                dotEl.className = `status-dot ${isOnline ? 'connected' : 'disconnected'}`;
+                dotEl.className = `status-dot ${isOnline ? 'connected pulsing' : 'disconnected'}`;
             }
             if (cardEl) {
                 const textEl = cardEl.querySelector('.stat-value');
@@ -1332,12 +1842,26 @@
                     textEl.style.color = isOnline ? 'var(--success)' : 'var(--danger)';
                 }
             }
+            
+            // Clear alerts if online
+            if (isOnline) {
+                clearAlert(`${service}-offline`);
+                clearAlert(`${service}-error`);
+            }
         }
 
         function formatNumber(num) {
             if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
             if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
             return num.toString();
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
         function formatUptime(timestamp) {
@@ -1399,11 +1923,41 @@
                 return isError && logTime >= oneDayAgo;
             });
 
-            // Update error count
-            const errorCountEl = document.getElementById('errorCount24h');
-            if (errorCountEl) {
-                errorCountEl.textContent = recentErrors.length;
-                errorCountEl.style.color = recentErrors.length > 0 ? 'var(--danger)' : 'inherit';
+            const errorCount = recentErrors.length;
+            
+            // Update error count with trend
+            updateMetricWithTrend('errorCount24h', 'errorsTrend', errorCount, previousMetrics.errors);
+            previousMetrics.errors = errorCount;
+            
+            // Update error badge
+            const errorBadgeEl = document.getElementById('errorBadge');
+            if (errorBadgeEl) {
+                errorBadgeEl.textContent = errorCount;
+                errorBadgeEl.className = errorCount > 0 ? 'badge bg-danger' : 'badge bg-secondary';
+            }
+            
+            // Update errors card styling
+            const errorsCardEl = document.getElementById('errorsCard');
+            if (errorsCardEl) {
+                errorsCardEl.className = errorCount > 5 ? 'critical-stat-card danger' : 
+                                         errorCount > 0 ? 'critical-stat-card warning' : 
+                                         'critical-stat-card success';
+            }
+            
+            // Update auth signal based on errors
+            updateSignalIndicator('signalAuth', errorCount, [3, 10], 
+                errorCount > 0 ? `${errorCount} errors` : 'All OK');
+            
+            // Show critical alert if many errors
+            if (errorCount > 10) {
+                showCriticalAlert('high-error-rate', 'High Error Rate Detected', 
+                    `${errorCount} webhook failures in the last 24 hours. Review logs for details.`, 'danger');
+            } else if (errorCount > 5) {
+                showCriticalAlert('elevated-errors', 'Elevated Error Rate', 
+                    `${errorCount} webhook failures detected. Monitor closely.`, 'warning');
+            } else {
+                clearAlert('high-error-rate');
+                clearAlert('elevated-errors');
             }
 
             // Update recent errors list in monitoring tab
@@ -1475,6 +2029,7 @@
             loadMqttUserStats();
             loadExecutionLogs();
             loadVerneMQMetrics();
+            loadSystemStatistics();
             loadWebhooks();
         }
 
@@ -1695,11 +2250,20 @@
 
         // ========== Event Listeners ==========
         document.addEventListener('DOMContentLoaded', function() {
+            // Initial data load
             loadMqttUsers();
             loadMqttUserStats();
             loadExecutionLogs();
             loadVerneMQMetrics();
+            loadSystemStatistics();
             loadWebhooks();
+
+            // Auto-refresh monitoring data every 30 seconds
+            setInterval(() => {
+                loadVerneMQMetrics();
+                loadSystemStatistics();
+                loadExecutionLogs();
+            }, 30000);
 
             // Search and filter handlers
             document.getElementById('mqttUserSearch').addEventListener('input', 

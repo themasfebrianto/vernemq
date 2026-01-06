@@ -75,11 +75,14 @@ public class SystemController : ControllerBase
                 stats.SuccessRate = Math.Round((double)stats.SuccessfulExecutions / stats.TotalExecutions * 100, 2);
             }
 
-            // Calculate average response time
-            var avgResponseTime = await _context.WebhookExecutionLogs
+            // Calculate average response time (handle empty collection)
+            var logsWithResponseTime = await _context.WebhookExecutionLogs
                 .Where(l => l.ResponseTimeMs.HasValue)
-                .AverageAsync(l => (double)l.ResponseTimeMs!);
-            stats.AverageResponseTimeMs = Math.Round(avgResponseTime, 2);
+                .Select(l => (double)l.ResponseTimeMs!)
+                .ToListAsync();
+            stats.AverageResponseTimeMs = logsWithResponseTime.Count > 0 
+                ? Math.Round(logsWithResponseTime.Average(), 2) 
+                : 0;
 
             return Ok(stats);
         }
