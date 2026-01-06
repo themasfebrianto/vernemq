@@ -31,3 +31,5 @@ D:\LCS\vernemq\VerneMQWebhookAuth\obj\Debug\net8.0\refint\VerneMQWebhookAuth.dll
 D:\LCS\vernemq\VerneMQWebhookAuth\obj\Debug\net8.0\VerneMQWebhookAuth.pdb
 D:\LCS\vernemq\VerneMQWebhookAuth\obj\Debug\net8.0\VerneMQWebhookAuth.genruntimeconfig.cache
 D:\LCS\vernemq\VerneMQWebhookAuth\obj\Debug\net8.0\ref\VerneMQWebhookAuth.dll
+d:\LCS\vernemq\VerneMQWebhookAuth\obj\Debug\net8.0\VerneMQWebhookAuth.RazorAssemblyInfo.cache
+d:\LCS\vernemq\VerneMQWebhookAuth\obj\Debug\net8.0\VerneMQWebhookAuth.RazorAssemblyInfo.cs

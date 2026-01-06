@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VerneMQWebhookAuth")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3e786c477b37bdb562ed93672b9424a0752b423a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4f35cbe3466c4e70e79f8659e0c881c69cfd25ce")]
 [assembly: System.Reflection.AssemblyProductAttribute("VerneMQWebhookAuth")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VerneMQWebhookAuth")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

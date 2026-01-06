@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  webhook-management:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+      - "8443:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/webhook.db
+      - WebhookSettings__EnableHttpsOnly=true
+      - WebhookSettings__DefaultTimeoutSeconds=30
+      - WebhookSettings__MaxConcurrentWebhooks=10
+      - WebhookSettings__EnableRateLimiting=true
+      - WebhookSettings__RateLimitPerMinute=60
+    volumes:
+      - webhook_data:/app/data
+      - webhook_logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - webhook_network
+
+  # Optional: Add a reverse proxy for HTTPS
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - webhook-management
+    restart: unless-stopped
+    networks:
+      - webhook_network
+
+volumes:
+  webhook_data:
+    driver: local
+  webhook_logs:
+    driver: local
+
+networks:
+  webhook_network:
+    driver: bridge

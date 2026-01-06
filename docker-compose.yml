@@ -5,7 +5,7 @@ services:
           dockerfile: Dockerfile
         container_name: webhook-auth
         ports:
-          - 5000:5000
+          - 5000:80
         restart: always
 
       vernemq:
