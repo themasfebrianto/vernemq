@@ -1,0 +1,15 @@
+{
+    "name": "vernemq-load-test",
+    "version": "1.0.0",
+    "description": "Simple MQTT load testing worker for VerneMQ",
+    "main": "worker.js",
+    "scripts": {
+        "start": "node worker.js",
+        "light": "node worker.js --clients 5 --interval 2000 --duration 60",
+        "medium": "node worker.js --clients 20 --interval 500 --duration 120",
+        "heavy": "node worker.js --clients 50 --interval 100 --duration 300"
+    },
+    "dependencies": {
+        "mqtt": "^5.3.0"
+    }
+}

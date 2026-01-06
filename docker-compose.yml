@@ -1,40 +1,34 @@
 services:
-      webhook-auth:
-        build:
-          context: ./VerneMQWebhookAuth
-          dockerfile: Dockerfile
-        container_name: webhook-auth
-        ports:
-          - 5000:80
-        restart: always
+  webhook-auth:
+    build:
+      context: ./VerneMQWebhookAuth
+      dockerfile: Dockerfile
+    container_name: webhook-auth
+    ports:
+      - "5000:80"
+    restart: always
 
-      vernemq:
-        image: vernemq/vernemq:latest
-        container_name: vernemq
-        ports:
-          - 1883:1883
-          - 8080:8080
-          - 8888:8888
-        environment:
-          - DOCKER_VERNEMQ_ACCEPT_EULA=yes
-          - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=off
-          # enable the webhooks plugin
-          - DOCKER_VERNEMQ_PLUGINS__VMQ_WEBHOOKS=on
-
-          # cache authentication results for 60 seconds
-          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__CACHE_TIMEOUT=60000
-          
-          # Named webhook configs: MYAUTH1 for register, MYAUTH2 for publish, MYAUTH3 for subscribe
-          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH1__HOOK=auth_on_register
-          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH1__ENDPOINT=http://webhook-auth:5000/mqtt/auth
-          
-          # Webhook for publish authorization
-          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH2__HOOK=auth_on_publish
-          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH2__ENDPOINT=http://webhook-auth:5000/mqtt/publish
-          
-          # Webhook for subscribe authorization
-          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH3__HOOK=auth_on_subscribe
-          - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH3__ENDPOINT=http://webhook-auth:5000/mqtt/subscribe
-        depends_on:
-          - webhook-auth
-        restart: always
+  vernemq:
+    image: vernemq/vernemq:latest
+    container_name: vernemq
+    ports:
+      - "1883:1883"
+      - "8080:8080"
+      - "8888:8888"
+    environment:
+      - DOCKER_VERNEMQ_ACCEPT_EULA=yes
+      - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=off
+      # enable the webhooks plugin
+      - DOCKER_VERNEMQ_PLUGINS__VMQ_WEBHOOKS=on
+      # Webhook for client authentication
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH1__HOOK=auth_on_register
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH1__ENDPOINT=http://webhook-auth:80/mqtt/auth
+      # Webhook for publish authorization
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH2__HOOK=auth_on_publish
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH2__ENDPOINT=http://webhook-auth:80/mqtt/publish
+      # Webhook for subscribe authorization
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH3__HOOK=auth_on_subscribe
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH3__ENDPOINT=http://webhook-auth:80/mqtt/subscribe
+    depends_on:
+      - webhook-auth
+    restart: always
