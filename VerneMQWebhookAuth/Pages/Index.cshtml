@@ -380,16 +380,23 @@
 
                         <div class="monitoring-card">
                             <h5 class="mb-4"><i class="fas fa-chart-bar me-2"></i>Traffic Metrics</h5>
-                            <div class="alert alert-panel alert-info">
-                                <h6><i class="fas fa-lightbulb me-2"></i>Best Practice: Prometheus + Grafana</h6>
-                                <p class="mb-2">For production monitoring, integrate VerneMQ with:</p>
-                                <ul class="mb-0">
-                                    <li><strong>Prometheus</strong> - Metrics collection (VerneMQ exposes metrics on port 8888)</li>
-                                    <li><strong>Grafana</strong> - Beautiful dashboards and alerting</li>
-                                </ul>
-                                <hr>
-                                <p class="mb-1"><strong>Quick Setup:</strong></p>
-                                <code>curl http://localhost:8888/metrics</code>
+                            <div class="alert alert-panel alert-success mb-3">
+                                <h6><i class="fas fa-check-circle me-2"></i>Prometheus + Grafana Integrated!</h6>
+                                <p class="mb-2">Full monitoring stack is now available:</p>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <a href="http://localhost:3030" target="_blank" class="btn btn-sm btn-light">
+                                        <i class="fas fa-chart-area me-1"></i>Open Grafana
+                                    </a>
+                                    <a href="http://localhost:9090" target="_blank" class="btn btn-sm btn-light">
+                                        <i class="fas fa-database me-1"></i>Open Prometheus
+                                    </a>
+                                    <a href="http://localhost:8888/metrics" target="_blank" class="btn btn-sm btn-outline-light">
+                                        <i class="fas fa-code me-1"></i>Raw Metrics
+                                    </a>
+                                </div>
+                                <small class="text-muted d-block mt-2">
+                                    Grafana login: admin / admin
+                                </small>
                             </div>
                             <div class="row mt-3">
                                 <div class="col-md-6">
@@ -431,8 +438,10 @@
                             <ul class="list-unstyled small">
                                 <li class="mb-2"><code>:1883</code> - MQTT TCP</li>
                                 <li class="mb-2"><code>:8080</code> - WebSocket</li>
-                                <li class="mb-2"><code>:8888</code> - Metrics</li>
+                                <li class="mb-2"><code>:8888</code> - VerneMQ Metrics</li>
                                 <li class="mb-2"><code>:5000</code> - Webhook API</li>
+                                <li class="mb-2"><code>:9090</code> - Prometheus</li>
+                                <li class="mb-2"><code>:3030</code> - Grafana</li>
                             </ul>
                         </div>
                     </div>

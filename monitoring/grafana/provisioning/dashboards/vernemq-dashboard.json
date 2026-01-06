@@ -1,0 +1,325 @@
+{
+    "annotations": {
+        "list": []
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+        {
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 0,
+                "y": 0
+            },
+            "id": 1,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto"
+            },
+            "pluginVersion": "10.0.0",
+            "targets": [
+                {
+                    "expr": "sum(vernemq_mqtt_connect_received)",
+                    "legendFormat": "Connections",
+                    "refId": "A"
+                }
+            ],
+            "title": "Total Connections",
+            "type": "stat"
+        },
+        {
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 6,
+                "y": 0
+            },
+            "id": 2,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto"
+            },
+            "pluginVersion": "10.0.0",
+            "targets": [
+                {
+                    "expr": "sum(vernemq_mqtt_publish_received)",
+                    "legendFormat": "Messages",
+                    "refId": "A"
+                }
+            ],
+            "title": "Messages Received",
+            "type": "stat"
+        },
+        {
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 12,
+                "y": 0
+            },
+            "id": 3,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto"
+            },
+            "pluginVersion": "10.0.0",
+            "targets": [
+                {
+                    "expr": "sum(vernemq_mqtt_subscribe_received)",
+                    "legendFormat": "Subscriptions",
+                    "refId": "A"
+                }
+            ],
+            "title": "Total Subscriptions",
+            "type": "stat"
+        },
+        {
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 18,
+                "y": 0
+            },
+            "id": 4,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto"
+            },
+            "pluginVersion": "10.0.0",
+            "targets": [
+                {
+                    "expr": "sum(vernemq_webhooks_on_register_requests)",
+                    "legendFormat": "Webhook Requests",
+                    "refId": "A"
+                }
+            ],
+            "title": "Webhook Auth Requests",
+            "type": "stat"
+        },
+        {
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 4
+            },
+            "id": 5,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "10.0.0",
+            "targets": [
+                {
+                    "expr": "rate(vernemq_mqtt_publish_received[1m])",
+                    "legendFormat": "Publish Rate",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(vernemq_mqtt_publish_sent[1m])",
+                    "legendFormat": "Delivery Rate",
+                    "refId": "B"
+                }
+            ],
+            "title": "Message Rate (per second)",
+            "type": "timeseries"
+        },
+        {
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 4
+            },
+            "id": 6,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "10.0.0",
+            "targets": [
+                {
+                    "expr": "rate(vernemq_mqtt_connect_received[1m])",
+                    "legendFormat": "Connection Rate",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(vernemq_mqtt_disconnect_received[1m])",
+                    "legendFormat": "Disconnect Rate",
+                    "refId": "B"
+                }
+            ],
+            "title": "Connection Rate (per second)",
+            "type": "timeseries"
+        },
+        {
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 12
+            },
+            "id": 7,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "10.0.0",
+            "targets": [
+                {
+                    "expr": "vernemq_system_utilization_scheduler_1",
+                    "legendFormat": "Scheduler 1",
+                    "refId": "A"
+                },
+                {
+                    "expr": "vernemq_system_utilization_scheduler_2",
+                    "legendFormat": "Scheduler 2",
+                    "refId": "B"
+                },
+                {
+                    "expr": "vernemq_system_utilization_scheduler_3",
+                    "legendFormat": "Scheduler 3",
+                    "refId": "C"
+                },
+                {
+                    "expr": "vernemq_system_utilization_scheduler_4",
+                    "legendFormat": "Scheduler 4",
+                    "refId": "D"
+                }
+            ],
+            "title": "Scheduler Utilization (%)",
+            "type": "timeseries"
+        },
+        {
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 12
+            },
+            "id": 8,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "10.0.0",
+            "targets": [
+                {
+                    "expr": "rate(vernemq_webhooks_on_register_requests[1m])",
+                    "legendFormat": "Auth Requests",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(vernemq_webhooks_on_publish_requests[1m])",
+                    "legendFormat": "Publish Auth",
+                    "refId": "B"
+                },
+                {
+                    "expr": "rate(vernemq_webhooks_on_subscribe_requests[1m])",
+                    "legendFormat": "Subscribe Auth",
+                    "refId": "C"
+                }
+            ],
+            "title": "Webhook Requests Rate",
+            "type": "timeseries"
+        }
+    ],
+    "refresh": "5s",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [
+        "vernemq",
+        "mqtt",
+        "iot"
+    ],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "VerneMQ MQTT Broker",
+    "uid": "vernemq-mqtt",
+    "version": 1,
+    "weekStart": ""
+}
