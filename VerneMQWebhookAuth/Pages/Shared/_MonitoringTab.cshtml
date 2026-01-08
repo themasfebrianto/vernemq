@@ -157,47 +157,28 @@
                     </span>
                 </h6>
                 <div class="d-flex gap-2">
-                    <select class="form-select form-select-sm" id="chartTimeRange" style="width: auto;">
-                        <option value="30">Last 30 points</option>
-                        <option value="60" selected>Last 60 points</option>
-                        <option value="120">Last 120 points</option>
-                    </select>
                     <a href="http://localhost:3030/d/vernemq-mqtt/vernemq-mqtt-broker" target="_blank" 
-                        class="btn btn-sm btn-outline" title="Open Grafana">
-                        <i class="fas fa-external-link-alt"></i>
+                        class="btn btn-sm btn-outline" title="Open Full Grafana Dashboard">
+                        <i class="fas fa-external-link-alt me-1"></i> Full Dashboard
                     </a>
                 </div>
             </div>
-            <div class="panel-body">
-                <!-- Auth Activity Chart -->
-                <div class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="small fw-semibold text-secondary">
-                            <i class="fas fa-shield-alt text-info me-1"></i> Authentication Activity
-                        </span>
-                        <div class="d-flex gap-3 small">
-                            <span><i class="fas fa-circle text-success" style="font-size: 8px;"></i> Success: <strong id="authSuccessCount">0</strong></span>
-                            <span><i class="fas fa-circle text-danger" style="font-size: 8px;"></i> Failed: <strong id="authFailedCount">0</strong></span>
-                        </div>
-                    </div>
-                    <div class="chart-container" style="height: 180px; position: relative;">
-                        <canvas id="authActivityChart"></canvas>
-                    </div>
-                </div>
-                
-                <!-- Connection & Message Chart -->
-                <div>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="small fw-semibold text-secondary">
-                            <i class="fas fa-exchange-alt text-primary me-1"></i> Connections & Messages
-                        </span>
-                        <div class="d-flex gap-3 small">
-                            <span><i class="fas fa-circle" style="font-size: 8px; color: #6366f1;"></i> Connections</span>
-                            <span><i class="fas fa-circle" style="font-size: 8px; color: #10b981;"></i> Messages/min</span>
-                        </div>
-                    </div>
-                    <div class="chart-container" style="height: 180px; position: relative;">
-                        <canvas id="trafficChart"></canvas>
+            <div class="panel-body p-0">
+                <!-- Embedded Grafana Chart - Live Activity Overview (Panel ID 9) -->
+                <div class="grafana-embed-container" style="position: relative; height: 400px; background: var(--color-bg-secondary); border-radius: 0 0 var(--radius-lg) var(--radius-lg); overflow: hidden;">
+                    <iframe 
+                        src="http://localhost:3030/d-solo/vernemq-mqtt/vernemq-mqtt-broker?orgId=1&panelId=9&refresh=5s&from=now-15m&to=now&theme=dark&kiosk"
+                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
+                        loading="lazy"
+                        title="Live Activity Chart">
+                    </iframe>
+                    <!-- Fallback message if Grafana is not available -->
+                    <div class="grafana-fallback d-none" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--color-text-secondary);">
+                        <i class="fas fa-chart-line fa-3x mb-3" style="opacity: 0.3;"></i>
+                        <p class="mb-2">Grafana chart unavailable</p>
+                        <a href="http://localhost:3030" target="_blank" class="btn btn-sm btn-primary">
+                            Open Grafana
+                        </a>
                     </div>
                 </div>
             </div>

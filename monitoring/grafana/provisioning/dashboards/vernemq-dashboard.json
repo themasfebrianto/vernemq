@@ -299,6 +299,130 @@
             ],
             "title": "Webhook Requests Rate",
             "type": "timeseries"
+        },
+        {
+            "gridPos": {
+                "h": 10,
+                "w": 24,
+                "x": 0,
+                "y": 20
+            },
+            "id": 9,
+            "options": {
+                "legend": {
+                    "calcs": [
+                        "mean",
+                        "max"
+                    ],
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "pluginVersion": "10.0.0",
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "line",
+                        "lineInterpolation": "smooth",
+                        "fillOpacity": 20,
+                        "pointSize": 5,
+                        "lineWidth": 2,
+                        "spanNulls": true
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Messages/sec"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "mode": "fixed",
+                                    "fixedColor": "#10b981"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Connections/sec"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "mode": "fixed",
+                                    "fixedColor": "#6366f1"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Webhooks/sec"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "mode": "fixed",
+                                    "fixedColor": "#f59e0b"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Disconnects/sec"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "mode": "fixed",
+                                    "fixedColor": "#ef4444"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "targets": [
+                {
+                    "expr": "sum(rate(vernemq_mqtt_publish_received[1m]))",
+                    "legendFormat": "Messages/sec",
+                    "refId": "A"
+                },
+                {
+                    "expr": "sum(rate(vernemq_mqtt_connect_received[1m]))",
+                    "legendFormat": "Connections/sec",
+                    "refId": "B"
+                },
+                {
+                    "expr": "sum(rate(vernemq_webhooks_on_register_requests[1m]) + rate(vernemq_webhooks_on_publish_requests[1m]) + rate(vernemq_webhooks_on_subscribe_requests[1m]))",
+                    "legendFormat": "Webhooks/sec",
+                    "refId": "C"
+                },
+                {
+                    "expr": "sum(rate(vernemq_mqtt_disconnect_received[1m]))",
+                    "legendFormat": "Disconnects/sec",
+                    "refId": "D"
+                }
+            ],
+            "description": "Real-time activity metrics showing message throughput, connection rates, webhook activity, and disconnection rates.",
+            "title": "Live Activity Overview",
+            "type": "timeseries"
         }
     ],
     "refresh": "5s",
