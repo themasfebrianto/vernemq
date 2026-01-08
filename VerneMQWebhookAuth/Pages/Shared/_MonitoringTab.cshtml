@@ -157,7 +157,7 @@
                     </span>
                 </h6>
                 <div class="d-flex gap-2">
-                    <a href="http://localhost:3030/d/vernemq-mqtt/vernemq-mqtt-broker" target="_blank" 
+                    <a id="grafanaDashboardLink" href="#" target="_blank" 
                         class="btn btn-sm btn-outline" title="Open Full Grafana Dashboard">
                         <i class="fas fa-external-link-alt me-1"></i> Full Dashboard
                     </a>
@@ -167,7 +167,8 @@
                 <!-- Embedded Grafana Chart - Live Activity Overview (Panel ID 9) -->
                 <div class="grafana-embed-container" style="position: relative; height: 400px; background: var(--color-bg-secondary); border-radius: 0 0 var(--radius-lg) var(--radius-lg); overflow: hidden;">
                     <iframe 
-                        src="http://localhost:3030/d-solo/vernemq-mqtt/vernemq-mqtt-broker?orgId=1&panelId=9&refresh=5s&from=now-15m&to=now&theme=dark&kiosk"
+                        id="grafanaLiveActivityIframe"
+                        data-grafana-path="/d-solo/vernemq-mqtt/vernemq-mqtt-broker?orgId=1&panelId=9&refresh=5s&from=now-15m&to=now&theme=dark&kiosk"
                         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
                         loading="lazy"
                         title="Live Activity Chart">
@@ -176,7 +177,7 @@
                     <div class="grafana-fallback d-none" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--color-text-secondary);">
                         <i class="fas fa-chart-line fa-3x mb-3" style="opacity: 0.3;"></i>
                         <p class="mb-2">Grafana chart unavailable</p>
-                        <a href="http://localhost:3030" target="_blank" class="btn btn-sm btn-primary">
+                        <a id="grafanaFallbackLink" href="#" target="_blank" class="btn btn-sm btn-primary">
                             Open Grafana
                         </a>
                     </div>
@@ -254,10 +255,10 @@
             </div>
             <div class="panel-body">
                 <div class="action-grid">
-                    <a href="http://localhost:9090" target="_blank" class="action-btn">
+                    <a id="prometheusLink" href="#" target="_blank" class="action-btn">
                         <i class="fas fa-database"></i> Prometheus
                     </a>
-                    <a href="http://localhost:3030" target="_blank" class="action-btn">
+                    <a id="grafanaLink" href="#" target="_blank" class="action-btn">
                         <i class="fas fa-chart-line"></i> Grafana Dashboard
                     </a>
                 </div>
@@ -276,3 +277,46 @@
     <span id="signalLatencyDetails"></span>
     <span id="signalQueueDetails"></span>
 </div>
+
+@section Scripts {
+<script>
+    // Initialize dynamic URLs for external services
+    (function() {
+        const hostname = window.location.hostname;
+        const grafanaPort = '3030';
+        const prometheusPort = '9090';
+        const grafanaBase = `http://${hostname}:${grafanaPort}`;
+        const prometheusBase = `http://${hostname}:${prometheusPort}`;
+        
+        // Set Grafana dashboard link
+        const dashboardLink = document.getElementById('grafanaDashboardLink');
+        if (dashboardLink) {
+            dashboardLink.href = `${grafanaBase}/d/vernemq-mqtt/vernemq-mqtt-broker`;
+        }
+        
+        // Set Grafana iframe src
+        const iframe = document.getElementById('grafanaLiveActivityIframe');
+        if (iframe) {
+            const path = iframe.getAttribute('data-grafana-path');
+            iframe.src = grafanaBase + path;
+        }
+        
+        // Set fallback link
+        const fallbackLink = document.getElementById('grafanaFallbackLink');
+        if (fallbackLink) {
+            fallbackLink.href = grafanaBase;
+        }
+        
+        // Set quick links
+        const prometheusLink = document.getElementById('prometheusLink');
+        if (prometheusLink) {
+            prometheusLink.href = prometheusBase;
+        }
+        
+        const grafanaLink = document.getElementById('grafanaLink');
+        if (grafanaLink) {
+            grafanaLink.href = grafanaBase;
+        }
+    })();
+</script>
+}
