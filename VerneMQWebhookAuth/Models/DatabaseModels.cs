@@ -201,3 +201,50 @@ public class SystemConfiguration
     [MaxLength(100)]
     public string? UpdatedBy { get; set; }
 }
+
+/// <summary>
+/// MQTT Activity Log - Tracks all MQTT events (auth, publish, subscribe, connect, disconnect)
+/// </summary>
+public class MqttActivityLog
+{
+    [Key]
+    public int Id { get; set; }
+
+    [Required]
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+    [Required]
+    [MaxLength(50)]
+    public string EventType { get; set; } = string.Empty; // auth, publish, subscribe, connect, disconnect
+
+    [Required]
+    public MqttEventResult Result { get; set; } // Success, Failed, Denied
+
+    [MaxLength(200)]
+    public string? ClientId { get; set; }
+
+    [MaxLength(100)]
+    public string? Username { get; set; }
+
+    [MaxLength(50)]
+    public string? PeerAddr { get; set; }
+
+    [MaxLength(500)]
+    public string? Topic { get; set; }
+
+    [MaxLength(1000)]
+    public string? Details { get; set; } // Additional JSON details
+
+    [MaxLength(500)]
+    public string? ErrorMessage { get; set; }
+}
+
+/// <summary>
+/// MQTT event result
+/// </summary>
+public enum MqttEventResult
+{
+    Success = 1,
+    Failed = 2,
+    Denied = 3
+}

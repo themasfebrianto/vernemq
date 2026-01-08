@@ -21,6 +21,7 @@ public class WebhookController : ControllerBase
     private readonly WebhookDbContext _db;
     private readonly IWebhookTriggerService _webhookTriggerService;
     private readonly IMemoryCache _cache;
+    private readonly IMqttActivityLogger _activityLogger;
     
     // Cache settings
     private static readonly TimeSpan AuthCacheDuration = TimeSpan.FromMinutes(5);
@@ -31,13 +32,15 @@ public class WebhookController : ControllerBase
         IConfiguration configuration,
         WebhookDbContext db,
         IWebhookTriggerService webhookTriggerService,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IMqttActivityLogger activityLogger)
     {
         _logger = logger;
         _configuration = configuration;
         _db = db;
         _webhookTriggerService = webhookTriggerService;
         _cache = cache;
+        _activityLogger = activityLogger;
     }
 
     /// <summary>
@@ -55,6 +58,11 @@ public class WebhookController : ControllerBase
         {
             _logger.LogWarning("Auth failed - Missing username or password");
             
+            // Log activity
+            _ = _activityLogger.LogAsync(MqttEventTypes.Auth, MqttEventResult.Failed,
+                request.ClientId, request.Username, request.PeerAddr, 
+                errorMessage: "Username atau password tidak diberikan");
+            
             // Trigger on_auth_failed webhook
             _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnAuthFailed, new WebhookEventData
             {
@@ -64,6 +72,9 @@ public class WebhookController : ControllerBase
                 PeerAddr = request.PeerAddr,
                 ErrorReason = "missing_credentials"
             }));
+            
+            // Track metrics
+            AppMetrics.MqttAuthAttempts.WithLabels("failure").Inc();
             
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "missing_credentials" } });
         }
@@ -96,6 +107,11 @@ public class WebhookController : ControllerBase
         {
             _logger.LogWarning("Auth failed - User not found: {Username}", request.Username);
             
+            // Log activity
+            _ = _activityLogger.LogAsync(MqttEventTypes.Auth, MqttEventResult.Failed,
+                request.ClientId, request.Username, request.PeerAddr,
+                errorMessage: "User tidak ditemukan atau tidak aktif");
+            
             // Trigger on_auth_failed webhook
             _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnAuthFailed, new WebhookEventData
             {
@@ -105,6 +121,9 @@ public class WebhookController : ControllerBase
                 PeerAddr = request.PeerAddr,
                 ErrorReason = "invalid_credentials"
             }));
+            
+            // Track metrics
+            AppMetrics.MqttAuthAttempts.WithLabels("failure").Inc();
             
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "invalid_credentials" } });
         }
@@ -114,6 +133,11 @@ public class WebhookController : ControllerBase
         {
             _logger.LogWarning("Auth failed - Invalid password for user: {Username}", request.Username);
             
+            // Log activity
+            _ = _activityLogger.LogAsync(MqttEventTypes.Auth, MqttEventResult.Failed,
+                request.ClientId, request.Username, request.PeerAddr,
+                errorMessage: "Password salah");
+            
             // Trigger on_auth_failed webhook
             _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnAuthFailed, new WebhookEventData
             {
@@ -123,6 +147,9 @@ public class WebhookController : ControllerBase
                 PeerAddr = request.PeerAddr,
                 ErrorReason = "invalid_credentials"
             }));
+            
+            // Track metrics
+            AppMetrics.MqttAuthAttempts.WithLabels("failure").Inc();
             
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "invalid_credentials" } });
         }
@@ -135,6 +162,11 @@ public class WebhookController : ControllerBase
                 "Auth failed - ClientId mismatch for user: {Username}. Expected: {Expected}, Got: {Got}",
                 request.Username, user.AllowedClientId, request.ClientId);
             
+            // Log activity
+            _ = _activityLogger.LogAsync(MqttEventTypes.Auth, MqttEventResult.Denied,
+                request.ClientId, request.Username, request.PeerAddr,
+                errorMessage: $"Client ID tidak sesuai. Diharapkan: {user.AllowedClientId}");
+            
             // Trigger on_auth_failed webhook
             _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnAuthFailed, new WebhookEventData
             {
@@ -144,6 +176,9 @@ public class WebhookController : ControllerBase
                 PeerAddr = request.PeerAddr,
                 ErrorReason = "client_id_mismatch"
             }));
+            
+            // Track metrics
+            AppMetrics.MqttAuthAttempts.WithLabels("failure").Inc();
             
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "client_id_mismatch" } });
         }
@@ -174,6 +209,15 @@ public class WebhookController : ControllerBase
                 PeerAddr = request.PeerAddr
             });
         });
+
+        // Log successful auth with details
+        var cleanSession = request.CleanSession == true ? "Clean Session" : "Persistent Session";
+        _ = _activityLogger.LogAsync(MqttEventTypes.Auth, MqttEventResult.Success,
+            request.ClientId, request.Username, request.PeerAddr,
+            details: $"Login berhasil. {cleanSession}");
+        
+        // Track metrics
+        AppMetrics.MqttAuthAttempts.WithLabels("success").Inc();
 
         _logger.LogInformation("Auth successful for user: {Username}", request.Username);
         return Ok(new VerneMQResponse { Result = "ok" });
@@ -294,6 +338,87 @@ public class WebhookController : ControllerBase
             Topic = string.Join(", ", request.Topics?.Select(t => t.Topic) ?? Array.Empty<string>())
         }));
         
+        return Ok(new VerneMQResponse { Result = "ok" });
+    }
+
+    /// <summary>
+    /// Called when a client goes offline (disconnects or session expires)
+    /// </summary>
+    [HttpPost("client-offline")]
+    public async Task<IActionResult> OnClientOffline([FromBody] ClientStatusRequest request)
+    {
+        _logger.LogInformation(
+            "Client offline - ClientId: {ClientId}, Username: {Username}",
+            request.ClientId, request.Username);
+
+        // Log activity
+        await _activityLogger.LogAsync(MqttEventTypes.Disconnect, MqttEventResult.Success,
+            request.ClientId, request.Username, request.PeerAddr,
+            details: "Client disconnected");
+
+        // Trigger on_client_disconnect webhook
+        _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnClientDisconnect, new WebhookEventData
+        {
+            Event = WebhookEvents.OnClientDisconnect,
+            ClientId = request.ClientId,
+            Username = request.Username,
+            PeerAddr = request.PeerAddr
+        }));
+
+        return Ok(new VerneMQResponse { Result = "ok" });
+    }
+
+    /// <summary>
+    /// Called when a client wakes up (reconnects with existing session)
+    /// </summary>
+    [HttpPost("client-wakeup")]
+    public async Task<IActionResult> OnClientWakeup([FromBody] ClientStatusRequest request)
+    {
+        _logger.LogInformation(
+            "Client wakeup - ClientId: {ClientId}, Username: {Username}",
+            request.ClientId, request.Username);
+
+        // Log activity
+        await _activityLogger.LogAsync(MqttEventTypes.Wakeup, MqttEventResult.Success,
+            request.ClientId, request.Username, request.PeerAddr,
+            details: "Session resumed");
+
+        // Trigger on_client_connect webhook for wake up
+        _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnClientConnect, new WebhookEventData
+        {
+            Event = WebhookEvents.OnClientConnect,
+            ClientId = request.ClientId,
+            Username = request.Username,
+            PeerAddr = request.PeerAddr
+        }));
+
+        return Ok(new VerneMQResponse { Result = "ok" });
+    }
+
+    /// <summary>
+    /// Called when a client disconnects with clean_session=true (session fully removed)
+    /// </summary>
+    [HttpPost("client-gone")]
+    public async Task<IActionResult> OnClientGone([FromBody] ClientStatusRequest request)
+    {
+        _logger.LogInformation(
+            "Client gone - ClientId: {ClientId}, Username: {Username}",
+            request.ClientId, request.Username);
+
+        // Log activity
+        await _activityLogger.LogAsync(MqttEventTypes.Disconnect, MqttEventResult.Success,
+            request.ClientId, request.Username, request.PeerAddr,
+            details: "Client disconnected (clean session)");
+
+        // Trigger on_client_disconnect webhook
+        _ = Task.Run(() => _webhookTriggerService.TriggerWebhooksAsync(WebhookEvents.OnClientDisconnect, new WebhookEventData
+        {
+            Event = WebhookEvents.OnClientDisconnect,
+            ClientId = request.ClientId,
+            Username = request.Username,
+            PeerAddr = request.PeerAddr
+        }));
+
         return Ok(new VerneMQResponse { Result = "ok" });
     }
 

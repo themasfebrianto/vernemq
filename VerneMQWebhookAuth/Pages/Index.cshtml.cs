@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace VerneMQWebhookAuth.Pages;
@@ -5,6 +6,7 @@ namespace VerneMQWebhookAuth.Pages;
 /// <summary>
 /// Page model for the main webhook management interface
 /// </summary>
+[Authorize]
 public class IndexModel : PageModel
 {
     private readonly ILogger<IndexModel> _logger;

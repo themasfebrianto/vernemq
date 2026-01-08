@@ -1,6 +1,6 @@
 @* ==========================================================================
    VerneMQ Dashboard - Monitoring Tab Partial View
-   A control center view for system health, traffic, and actionable signals
+   Simplified control center view for essential system health and metrics
    ========================================================================== *@
 
 <!-- Critical Alerts Container (dynamically populated) -->
@@ -23,7 +23,6 @@
                     <span class="status-dot online pulsing" id="vernemqDot"></span>
                     <span class="status-card-value text-success">Online</span>
                 </div>
-                <div class="status-card-meta" id="vernemqVersion">v1.x</div>
             </div>
         </div>
         
@@ -143,47 +142,6 @@
     </div>
 </div>
 
-<!-- Section: Health Signals -->
-<div class="monitoring-section">
-    <div class="monitoring-section-title">
-        <i class="fas fa-heart"></i> Health Signals
-    </div>
-    
-    <div class="signal-grid" id="healthSignalsContainer">
-        <div class="signal-item healthy" id="signalAuth">
-            <span class="signal-dot healthy"></span>
-            <div class="signal-content">
-                <div class="signal-title">Authentication</div>
-                <div class="signal-detail" id="signalAuthDetails">All OK</div>
-            </div>
-        </div>
-        
-        <div class="signal-item healthy" id="signalWebhooks">
-            <span class="signal-dot healthy"></span>
-            <div class="signal-content">
-                <div class="signal-title">Webhooks</div>
-                <div class="signal-detail" id="signalWebhooksDetails">All OK</div>
-            </div>
-        </div>
-        
-        <div class="signal-item healthy" id="signalLatency">
-            <span class="signal-dot healthy"></span>
-            <div class="signal-content">
-                <div class="signal-title">Avg Response</div>
-                <div class="signal-detail" id="signalLatencyDetails">--ms</div>
-            </div>
-        </div>
-        
-        <div class="signal-item healthy" id="signalQueue">
-            <span class="signal-dot healthy"></span>
-            <div class="signal-content">
-                <div class="signal-title">Queue Status</div>
-                <div class="signal-detail" id="signalQueueDetails">Clear</div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Main Content Grid -->
 <div class="row g-4">
     <!-- Left Column: Charts & Throughput -->
@@ -253,7 +211,7 @@
         </div>
     </div>
     
-    <!-- Right Column: Sidebar Panels -->
+    <!-- Right Column: Errors & Quick Links -->
     <div class="col-lg-4">
         <!-- Recent Errors Panel -->
         <div class="panel mb-4">
@@ -280,87 +238,12 @@
             </div>
         </div>
         
-        <!-- Security Monitor Panel -->
-        <div class="panel mb-4">
-            <div class="panel-header">
-                <h6 class="panel-title">
-                    <i class="fas fa-shield-halved text-warning"></i>
-                    Security Monitor
-                </h6>
-            </div>
-            <div class="panel-body">
-                <div class="stats-list">
-                    <div class="stats-list-item">
-                        <span class="stats-list-label">Failed Auth (24h)</span>
-                        <span class="stats-list-value" id="failedAuthCount">0</span>
-                    </div>
-                    <div class="stats-list-item">
-                        <span class="stats-list-label">Blocked IPs</span>
-                        <span class="stats-list-value" id="blockedIpsCount">0</span>
-                    </div>
-                    <div class="stats-list-item">
-                        <span class="stats-list-label">Active Sessions</span>
-                        <span class="stats-list-value" id="activeSessionsCount">-</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Service Endpoints Panel -->
-        <div class="panel mb-4">
-            <div class="panel-header">
-                <h6 class="panel-title">
-                    <i class="fas fa-network-wired"></i>
-                    Service Endpoints
-                </h6>
-            </div>
-            <div class="panel-body">
-                <div class="endpoint-list">
-                    <div class="endpoint-item">
-                        <div class="endpoint-name">
-                            <span class="status-dot online" style="width: 6px; height: 6px;"></span>
-                            MQTT TCP
-                        </div>
-                        <span class="endpoint-port">:1883</span>
-                    </div>
-                    <div class="endpoint-item">
-                        <div class="endpoint-name">
-                            <span class="status-dot online" style="width: 6px; height: 6px;"></span>
-                            WebSocket
-                        </div>
-                        <span class="endpoint-port">:8080</span>
-                    </div>
-                    <div class="endpoint-item">
-                        <div class="endpoint-name">
-                            <span class="status-dot online" style="width: 6px; height: 6px;" id="webhookEndpointDot"></span>
-                            Webhook API
-                        </div>
-                        <span class="endpoint-port">:5000</span>
-                    </div>
-                    <div class="endpoint-item">
-                        <div class="endpoint-name">
-                            <span class="status-dot online" style="width: 6px; height: 6px;"></span>
-                            Prometheus
-                        </div>
-                        <span class="endpoint-port">:9090</span>
-                    </div>
-                    <div class="endpoint-item">
-                        <div class="endpoint-name">
-                            <span class="status-dot online" style="width: 6px; height: 6px;"></span>
-                            Grafana
-                        </div>
-                        <span class="endpoint-port">:3030</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Quick Actions Panel -->
+        <!-- Quick Links Panel -->
         <div class="panel">
             <div class="panel-header">
                 <h6 class="panel-title">
-                    <i class="fas fa-bolt text-warning"></i>
-                    Quick Actions
+                    <i class="fas fa-external-link"></i>
+                    External Tools
                 </h6>
             </div>
             <div class="panel-body">
@@ -369,13 +252,21 @@
                         <i class="fas fa-database"></i> Prometheus
                     </a>
                     <a href="http://localhost:3030" target="_blank" class="action-btn">
-                        <i class="fas fa-chart-line"></i> Grafana
+                        <i class="fas fa-chart-line"></i> Grafana Dashboard
                     </a>
-                    <button class="action-btn" onclick="refreshAllData()">
-                        <i class="fas fa-sync"></i> Refresh All Data
-                    </button>
                 </div>
             </div>
         </div>
     </div>
+</div>
+
+<!-- Hidden elements for JS compatibility -->
+<div style="display: none;">
+    <span id="mqttSubscriptions">0</span>
+    <span id="activeSessionsCount">0</span>
+    <span id="failedAuthCount">0</span>
+    <span id="signalAuthDetails"></span>
+    <span id="signalWebhooksDetails"></span>
+    <span id="signalLatencyDetails"></span>
+    <span id="signalQueueDetails"></span>
 </div>

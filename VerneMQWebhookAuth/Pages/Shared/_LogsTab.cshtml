@@ -1,23 +1,57 @@
 @* ==========================================================================
    VerneMQ Dashboard - Logs Tab Partial View
+   Shows both Webhook Execution logs and MQTT Activity logs
    ========================================================================== *@
 
-<div class="panel">
+<!-- Log Type Toggle -->
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="btn-group" role="group" aria-label="Log type toggle">
+         <button type="button" class="btn btn-outline active" id="btnMqttLogs" onclick="LogsTab.showMqttLogs()">
+            <i class="fas fa-server me-1"></i> MQTT Activity
+        </button>
+        <button type="button" class="btn btn-outline" id="btnWebhookLogs" onclick="LogsTab.showWebhookLogs()">
+            <i class="fas fa-link me-1"></i> Webhook Executions
+        </button>
+           </div>
+    <div class="d-flex gap-2">
+        <select class="form-select form-select-sm" id="mqttEventTypeFilter" style="width: 140px; display: block;" onchange="LogsTab.loadMqttLogs()">
+            <option value="">All Events</option>
+            <option value="auth">Authentication</option>
+            <option value="publish">Publish</option>
+            <option value="subscribe">Subscribe</option>
+            <option value="connect">Connect</option>
+            <option value="disconnect">Disconnect</option>
+        </select>
+        <select class="form-select form-select-sm" id="mqttResultFilter" style="width: 120px; display: block;" onchange="LogsTab.loadMqttLogs()">
+            <option value="">All Results</option>
+            <option value="Success">Success</option>
+            <option value="Failed">Failed</option>
+            <option value="Denied">Denied</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="LogsTab.refresh()">
+            <i class="fas fa-rotate me-1"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Webhook Execution Logs Panel -->
+<div class="panel" id="webhookLogsPanel" style="display: none;">
     <div class="panel-header">
         <h6 class="panel-title">
             <i class="fas fa-list-check"></i>
-            Recent Webhook Executions
+            Webhook Execution History
         </h6>
+        <span class="badge badge-neutral" id="webhookLogsCount">0</span>
     </div>
     <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
         <table class="data-table">
             <thead>
                 <tr>
                     <th>Timestamp</th>
-                    <th>Resource</th>
+                    <th>Webhook</th>
                     <th>Status</th>
                     <th>Latency</th>
-                    <th>Origin</th>
+                    <th>Triggered By</th>
                 </tr>
             </thead>
             <tbody id="logsTableBody">
@@ -30,3 +64,159 @@
         </table>
     </div>
 </div>
+
+<!-- MQTT Activity Logs Panel -->
+<div class="panel" id="mqttLogsPanel">
+    <div class="panel-header">
+        <h6 class="panel-title">
+            <i class="fas fa-server"></i>
+            MQTT Activity Log
+        </h6>
+        <span class="badge badge-neutral" id="mqttLogsCount">0</span>
+    </div>
+    <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Event</th>
+                    <th>Result</th>
+                    <th>Username</th>
+                    <th>Client ID</th>
+                    <th>IP Address</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody id="mqttLogsTableBody">
+                <tr>
+                    <td colspan="7" class="text-center py-5">
+                        <div class="spinner-border spinner-border-sm text-muted" role="status"></div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const LogsTab = {
+    currentTab: 'mqtt',
+    
+    showWebhookLogs() {
+        this.currentTab = 'webhook';
+        document.getElementById('btnWebhookLogs').classList.add('active');
+        document.getElementById('btnMqttLogs').classList.remove('active');
+        document.getElementById('webhookLogsPanel').style.display = 'block';
+        document.getElementById('mqttLogsPanel').style.display = 'none';
+        document.getElementById('mqttEventTypeFilter').style.display = 'none';
+        document.getElementById('mqttResultFilter').style.display = 'none';
+    },
+    
+    showMqttLogs() {
+        this.currentTab = 'mqtt';
+        document.getElementById('btnMqttLogs').classList.add('active');
+        document.getElementById('btnWebhookLogs').classList.remove('active');
+        document.getElementById('mqttLogsPanel').style.display = 'block';
+        document.getElementById('webhookLogsPanel').style.display = 'none';
+        document.getElementById('mqttEventTypeFilter').style.display = 'block';
+        document.getElementById('mqttResultFilter').style.display = 'block';
+        this.loadMqttLogs();
+    },
+    
+    async loadMqttLogs() {
+        const tbody = document.getElementById('mqttLogsTableBody');
+        const eventType = document.getElementById('mqttEventTypeFilter').value;
+        const result = document.getElementById('mqttResultFilter').value;
+        
+        let url = '/api/system/mqtt-activity?pageSize=100';
+        if (eventType) url += `&eventType=${eventType}`;
+        if (result) url += `&result=${result}`;
+        
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('mqttLogsCount').textContent = data.totalCount;
+                
+                if (data.items.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="empty-state">
+                                <i class="fas fa-inbox empty-state-icon d-block"></i>
+                                <div class="empty-state-text">No MQTT activity logs yet</div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                tbody.innerHTML = data.items.map(log => {
+                    // Determine what to show in Details column
+                    let detailsContent = '-';
+                    let detailsClass = 'small text-muted';
+                    
+                    if (log.errorMessage) {
+                        detailsContent = log.errorMessage;
+                        detailsClass = 'small text-danger';
+                    } else if (log.details) {
+                        detailsContent = log.details;
+                        detailsClass = 'small text-success';
+                    } else if (log.topic) {
+                        detailsContent = `Topic: ${log.topic}`;
+                        detailsClass = 'small text-info';
+                    }
+                    
+                    return `
+                        <tr>
+                            <td class="small fw-medium">${Utils.formatDateTime(log.timestamp)}</td>
+                            <td><span class="badge ${this.getEventBadgeClass(log.eventType)}">${log.eventType}</span></td>
+                            <td><span class="badge ${this.getResultBadgeClass(log.result)}">${log.result}</span></td>
+                            <td class="small font-mono">${log.username || '-'}</td>
+                            <td class="small font-mono text-truncate" style="max-width: 150px;" title="${log.clientId || ''}">${log.clientId || '-'}</td>
+                            <td class="small text-muted">${log.peerAddr || '-'}</td>
+                            <td class="${detailsClass}">${detailsContent}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        } catch (error) {
+            console.error('Error loading MQTT logs:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-danger py-4">
+                        <i class="fas fa-exclamation-circle me-2"></i>Failed to load logs
+                    </td>
+                </tr>
+            `;
+        }
+    },
+    
+    getEventBadgeClass(eventType) {
+        switch (eventType) {
+            case 'auth': return 'badge-info';
+            case 'connect': return 'badge-success';
+            case 'disconnect': return 'badge-warning';
+            case 'publish': return 'badge-primary';
+            case 'subscribe': return 'badge-neutral';
+            default: return 'badge-neutral';
+        }
+    },
+    
+    getResultBadgeClass(result) {
+        switch (result) {
+            case 'Success': return 'badge-success';
+            case 'Failed': return 'badge-danger';
+            case 'Denied': return 'badge-warning';
+            default: return 'badge-neutral';
+        }
+    },
+    
+    refresh() {
+        if (this.currentTab === 'mqtt') {
+            this.loadMqttLogs();
+        } else {
+            Monitoring.loadExecutionLogs();
+        }
+    }
+};
+</script>

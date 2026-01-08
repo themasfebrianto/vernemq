@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -13,6 +14,7 @@ namespace VerneMQWebhookAuth.Controllers;
 [ApiController]
 [Route("api/mqttusers")]
 [Produces("application/json")]
+[Authorize]
 public class MqttUserController : ControllerBase
 {
     private readonly ILogger<MqttUserController> _logger;

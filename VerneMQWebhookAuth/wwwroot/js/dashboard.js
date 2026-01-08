@@ -1,5 +1,5 @@
 /**
- * VerneMQ Webhook Dashboard - Main JavaScript Module
+ * VerneMQ Dashboard - Main JavaScript Module
  * ====================================================
  * Handles all API interactions, state management, and UI updates
  */
@@ -33,6 +33,14 @@ const API = {
                 headers: { 'Content-Type': 'application/json', ...options.headers },
                 ...options
             });
+
+            // Handle session expiration - redirect to login
+            if (response.status === 401) {
+                console.warn('Session expired, redirecting to login...');
+                window.location.href = '/Login';
+                return response;
+            }
+
             return response;
         } catch (error) {
             console.error(`API Error [${endpoint}]:`, error);
@@ -954,12 +962,34 @@ function deleteWebhook(id, name) { Webhooks.delete(id, name); }
 function testWebhook(id) { Webhooks.test(id); }
 
 function refreshAllData() {
-    MqttUsers.load();
-    MqttUsers.loadStats();
-    Webhooks.load();
-    Monitoring.loadVerneMQMetrics();
-    Monitoring.loadSystemStatistics();
-    Monitoring.loadExecutionLogs();
+    // Get refresh button and add spinning animation
+    const refreshBtn = document.querySelector('button[onclick="refreshAllData()"]');
+    const refreshIcon = refreshBtn?.querySelector('i.fa-rotate');
+
+    if (refreshIcon) {
+        refreshIcon.classList.add('fa-spin');
+        refreshBtn.disabled = true;
+    }
+
+    // Load all data
+    Promise.all([
+        MqttUsers.load(),
+        MqttUsers.loadStats(),
+        Webhooks.load(),
+        Monitoring.loadVerneMQMetrics(),
+        Monitoring.loadSystemStatistics(),
+        Monitoring.loadExecutionLogs(),
+        window.LogsTab ? LogsTab.loadMqttLogs() : Promise.resolve()
+    ]).finally(() => {
+        // Remove spinning animation after all data loaded (min 500ms for visual feedback)
+        setTimeout(() => {
+            if (refreshIcon) {
+                refreshIcon.classList.remove('fa-spin');
+                refreshBtn.disabled = false;
+            }
+            UI.showToast('Data refreshed successfully', 'success');
+        }, 500);
+    });
 }
 
 // =============================================================================
@@ -974,12 +1004,14 @@ document.addEventListener('DOMContentLoaded', function () {
     Monitoring.loadVerneMQMetrics();
     Monitoring.loadSystemStatistics();
     Monitoring.loadExecutionLogs();
+    if (window.LogsTab) LogsTab.loadMqttLogs();
 
     // Auto-refresh monitoring data every 30 seconds
     DashboardState.refreshInterval = setInterval(() => {
         Monitoring.loadVerneMQMetrics();
         Monitoring.loadSystemStatistics();
         Monitoring.loadExecutionLogs();
+        if (window.LogsTab && LogsTab.currentTab === 'mqtt') LogsTab.loadMqttLogs();
     }, 30000);
 
     // Search and filter handlers
@@ -1002,3 +1034,27 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+
+// =============================================================================
+// LOGOUT FUNCTION
+// =============================================================================
+
+async function logout() {
+    try {
+        const response = await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.ok) {
+            window.location.href = '/Login';
+        } else {
+            UI.showToast('Logout failed. Please try again.', 'danger');
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+        // Redirect anyway
+        window.location.href = '/Login';
+    }
+}
+

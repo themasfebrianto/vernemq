@@ -9,18 +9,22 @@ services:
     restart: always
     networks:
       - vernemq-network
+    volumes:
+      - webhook_data:/app/data
+      - webhook_logs:/app/logs
 
   vernemq:
     image: vernemq/vernemq:latest
     container_name: vernemq
     ports:
       - "1883:1883"
+      - "8883:8883"   # MQTT over TLS
       - "8080:8080"
       - "8888:8888"
     environment:
       - DOCKER_VERNEMQ_ACCEPT_EULA=yes
       - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=off
-      # enable the webhooks plugin
+      # Enable the webhooks plugin
       - DOCKER_VERNEMQ_PLUGINS__VMQ_WEBHOOKS=on
       # Webhook for client authentication
       - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH1__HOOK=auth_on_register
@@ -31,6 +35,27 @@ services:
       # Webhook for subscribe authorization
       - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH3__HOOK=auth_on_subscribe
       - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH3__ENDPOINT=http://webhook-auth:80/mqtt/subscribe
+      # Webhook for client offline (disconnect with persistent session)
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH4__HOOK=on_client_offline
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH4__ENDPOINT=http://webhook-auth:80/mqtt/client-offline
+      # Webhook for client wakeup (reconnection with clean_session=false)
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH5__HOOK=on_client_wakeup
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH5__ENDPOINT=http://webhook-auth:80/mqtt/client-wakeup
+      # Webhook for client gone (disconnect with clean session - session removed)
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH6__HOOK=on_client_gone
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH6__ENDPOINT=http://webhook-auth:80/mqtt/client-gone
+      # TLS Configuration (uncomment when certificates are available)
+      # - DOCKER_VERNEMQ_LISTENER__SSL__DEFAULT=0.0.0.0:8883
+      # - DOCKER_VERNEMQ_LISTENER__SSL__DEFAULT__CAFILE=/opt/vernemq/etc/ssl/ca.crt
+      # - DOCKER_VERNEMQ_LISTENER__SSL__DEFAULT__CERTFILE=/opt/vernemq/etc/ssl/server.crt
+      # - DOCKER_VERNEMQ_LISTENER__SSL__DEFAULT__KEYFILE=/opt/vernemq/etc/ssl/server.key
+      # - DOCKER_VERNEMQ_LISTENER__SSL__DEFAULT__REQUIRE_CERTIFICATE=off
+    volumes:
+      # Uncomment when SSL certificates are ready
+      # - ./ssl/ca.crt:/opt/vernemq/etc/ssl/ca.crt:ro
+      # - ./ssl/server.crt:/opt/vernemq/etc/ssl/server.crt:ro
+      # - ./ssl/server.key:/opt/vernemq/etc/ssl/server.key:ro
+      - vernemq_data:/opt/vernemq/data
     depends_on:
       - webhook-auth
     restart: always
@@ -46,6 +71,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -53,6 +79,22 @@ services:
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.retention.size=5GB'
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
     restart: always
     networks:
       - vernemq-network
@@ -63,21 +105,38 @@ services:
     ports:
       - "3030:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-VerneMQ@2026!}
       - GF_USERS_ALLOW_SIGN_UP=false
-      # Enable anonymous access for embedding
+      # Enable anonymous access for embedding (read-only)
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       # Allow embedding in iframes
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      # Install useful plugins
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-piechart-panel
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
     restart: always
     networks:
       - vernemq-network
@@ -89,3 +148,7 @@ networks:
 volumes:
   prometheus_data:
   grafana_data:
+  vernemq_data:
+  webhook_data:
+  webhook_logs:
+

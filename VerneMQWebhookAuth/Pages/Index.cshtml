@@ -6,8 +6,13 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="VerneMQ Webhook Dashboard - Monitor and manage your MQTT broker, webhooks, and users" />
-    <title>VerneMQ Webhook Dashboard</title>
+    <meta name="description" content="VerneMQ Dashboard - Monitor and manage your MQTT broker, webhooks, and users" />
+    <title>VerneMQ Dashboard</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="shortcut icon" href="/favicon.ico">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,9 +32,7 @@
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid px-4">
             <a class="navbar-brand" href="#">
-                <span class="navbar-brand-icon">
-                    <i class="fas fa-bolt"></i>
-                </span>
+                <img src="/logo_dashboard.png" alt="VerneMQ Logo" style="height: 32px; border-radius: var(--radius-md);">
                 VerneMQ
             </a>
             <div class="ms-auto d-flex align-items-center gap-3">
@@ -40,6 +43,16 @@
                 <button class="btn btn-outline btn-sm" onclick="refreshAllData()">
                     <i class="fas fa-rotate me-1 text-muted"></i> Refresh
                 </button>
+                <div class="dropdown">
+                    <button class="btn btn-outline btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-user me-1"></i> @User.Identity?.Name
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><span class="dropdown-item-text small text-muted">Signed in as <strong>@User.Identity?.Name</strong></span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Sign out</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
     </nav>

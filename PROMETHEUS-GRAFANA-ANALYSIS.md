@@ -4,6 +4,19 @@
 
 This document provides a comprehensive analysis of the Prometheus and Grafana monitoring implementation in the VerneMQ webhook authentication dashboard. The monitoring stack is **production-ready** with proper Docker integration, auto-provisioning, and VerneMQ metrics collection.
 
+### ✅ Improvements Implemented (2026-01-08)
+
+Based on the initial analysis, the following enhancements have been applied:
+
+1. **Webhook-Auth `/metrics` Endpoint** - Added `prometheus-net.AspNetCore` for HTTP metrics
+2. **Custom Application Metrics** - Created `AppMetrics.cs` for tracking MQTT auth attempts
+3. **Health Checks** - Added to Prometheus and Grafana containers
+4. **Resource Limits** - Memory/CPU limits added to monitoring containers
+5. **Secure Credentials** - Grafana password now via environment variable
+6. **Alerting Rules** - Created `alerts.yml` with VerneMQ and webhook monitoring rules
+7. **Data Retention** - Prometheus retention policy (15 days / 5GB)
+8. **Useful Plugins** - Grafana clock and piechart panels auto-installed
+
 ---
 
 ## Table of Contents

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
@@ -14,6 +15,7 @@ namespace VerneMQWebhookAuth.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class SystemController : ControllerBase
 {
     private readonly WebhookDbContext _context;
@@ -93,6 +95,67 @@ public class SystemController : ControllerBase
         {
             _logger.LogError(ex, "Error getting system statistics");
             return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Get MQTT activity logs with pagination and filtering
+    /// </summary>
+    [HttpGet("mqtt-activity")]
+    public async Task<ActionResult<MqttActivityLogsResponse>> GetMqttActivityLogs(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? eventType = null,
+        [FromQuery] string? result = null,
+        [FromQuery] string? username = null)
+    {
+        try
+        {
+            var query = _context.MqttActivityLogs.AsQueryable();
+
+            // Apply filters
+            if (!string.IsNullOrEmpty(eventType))
+                query = query.Where(l => l.EventType == eventType);
+            
+            if (!string.IsNullOrEmpty(result) && Enum.TryParse<MqttEventResult>(result, true, out var resultEnum))
+                query = query.Where(l => l.Result == resultEnum);
+            
+            if (!string.IsNullOrEmpty(username))
+                query = query.Where(l => l.Username != null && l.Username.Contains(username));
+
+            var totalCount = await query.CountAsync();
+
+            var logs = await query
+                .OrderByDescending(l => l.Timestamp)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(l => new MqttActivityLogDto
+                {
+                    Id = l.Id,
+                    Timestamp = l.Timestamp,
+                    EventType = l.EventType,
+                    Result = l.Result.ToString(),
+                    ClientId = l.ClientId,
+                    Username = l.Username,
+                    PeerAddr = l.PeerAddr,
+                    Topic = l.Topic,
+                    Details = l.Details,
+                    ErrorMessage = l.ErrorMessage
+                })
+                .ToListAsync();
+
+            return Ok(new MqttActivityLogsResponse
+            {
+                Items = logs,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching MQTT activity logs");
+            return StatusCode(500, new { error = "Failed to fetch activity logs" });
         }
     }
 
@@ -662,4 +725,26 @@ public class VerneMQMetricsDto
     public long BytesReceived { get; set; }
     public long BytesSent { get; set; }
     public string? Error { get; set; }
+}
+
+public class MqttActivityLogDto
+{
+    public int Id { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string EventType { get; set; } = string.Empty;
+    public string Result { get; set; } = string.Empty;
+    public string? ClientId { get; set; }
+    public string? Username { get; set; }
+    public string? PeerAddr { get; set; }
+    public string? Topic { get; set; }
+    public string? Details { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+public class MqttActivityLogsResponse
+{
+    public List<MqttActivityLogDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
 }

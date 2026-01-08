@@ -1,10 +1,13 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using VerneMQWebhookAuth.Data;
+using VerneMQWebhookAuth.Services;
 using Serilog;
 using System.Security.Cryptography;
 using System.Text;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -100,6 +103,45 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<VerneMQWebhookAuth.Services.IWebhookTriggerService, 
     VerneMQWebhookAuth.Services.WebhookTriggerService>();
 
+// Add MQTT Activity Logger
+builder.Services.AddScoped<VerneMQWebhookAuth.Services.IMqttActivityLogger,
+    VerneMQWebhookAuth.Services.MqttActivityLogger>();
+
+// Add Dashboard Authentication Service
+builder.Services.AddScoped<IDashboardAuthService, DashboardAuthService>();
+
+// Add Cookie Authentication
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Login";
+        options.LogoutPath = "/api/auth/logout";
+        options.AccessDeniedPath = "/Login";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+        options.Cookie.Name = "VerneMQ.Dashboard.Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnRedirectToLogin = context =>
+            {
+                // For API calls, return 401 instead of redirect
+                if (context.Request.Path.StartsWithSegments("/api") && 
+                    !context.Request.Path.StartsWithSegments("/api/auth"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
+                }
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
 // Initialize database
@@ -138,6 +180,9 @@ else
 // Enable serving static files from wwwroot
 app.UseStaticFiles();
 
+// Enable Prometheus HTTP request metrics
+app.UseHttpMetrics();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -145,6 +190,9 @@ app.MapControllers();
 app.MapRazorPages();
 app.MapHub<VerneMQWebhookAuth.Hubs.WebhookHub>("/webhookHub");
 app.MapHealthChecks("/health");
+
+// Map Prometheus metrics endpoint (no auth required for Prometheus scraping)
+app.MapMetrics();
 
 // Default route to the main page
 app.MapGet("/", async context =>
