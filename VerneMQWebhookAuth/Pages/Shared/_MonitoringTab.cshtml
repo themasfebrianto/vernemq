@@ -146,35 +146,60 @@
 <div class="row g-4">
     <!-- Left Column: Charts & Throughput -->
     <div class="col-lg-8">
-        <!-- Live Traffic Panel -->
+        <!-- Live Activity Panel -->
         <div class="panel mb-4">
             <div class="panel-header">
                 <h6 class="panel-title">
                     <i class="fas fa-chart-area"></i>
-                    Live Traffic
-                    <span class="badge badge-neutral ms-2">Real-time</span>
+                    Live Activity
+                    <span class="badge badge-neutral ms-2" id="liveActivityBadge">
+                        <i class="fas fa-circle text-success" style="font-size: 8px;"></i> Real-time
+                    </span>
                 </h6>
-                <a href="http://localhost:3030/d/vernemq-mqtt/vernemq-mqtt-broker" target="_blank" 
-                    class="btn btn-sm btn-outline">
-                    <i class="fas fa-external-link-alt me-1"></i> Open Grafana
-                </a>
+                <div class="d-flex gap-2">
+                    <select class="form-select form-select-sm" id="chartTimeRange" style="width: auto;">
+                        <option value="30">Last 30 points</option>
+                        <option value="60" selected>Last 60 points</option>
+                        <option value="120">Last 120 points</option>
+                    </select>
+                    <a href="http://localhost:3030/d/vernemq-mqtt/vernemq-mqtt-broker" target="_blank" 
+                        class="btn btn-sm btn-outline" title="Open Grafana">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </div>
             </div>
             <div class="panel-body">
-                <div class="chart-container mb-3" style="height: 220px;">
-                    <iframe 
-                        src="http://localhost:3030/d-solo/vernemq-mqtt/vernemq-mqtt-broker?orgId=1&panelId=5&theme=dark&refresh=5s"
-                        width="100%" height="220" frameborder="0" loading="lazy">
-                    </iframe>
+                <!-- Auth Activity Chart -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-semibold text-secondary">
+                            <i class="fas fa-shield-alt text-info me-1"></i> Authentication Activity
+                        </span>
+                        <div class="d-flex gap-3 small">
+                            <span><i class="fas fa-circle text-success" style="font-size: 8px;"></i> Success: <strong id="authSuccessCount">0</strong></span>
+                            <span><i class="fas fa-circle text-danger" style="font-size: 8px;"></i> Failed: <strong id="authFailedCount">0</strong></span>
+                        </div>
+                    </div>
+                    <div class="chart-container" style="height: 180px; position: relative;">
+                        <canvas id="authActivityChart"></canvas>
+                    </div>
                 </div>
-                <div class="chart-label">Message Rate (Publish/Delivery per second)</div>
                 
-                <div class="chart-container mb-3 mt-4" style="height: 220px;">
-                    <iframe 
-                        src="http://localhost:3030/d-solo/vernemq-mqtt/vernemq-mqtt-broker?orgId=1&panelId=6&theme=dark&refresh=5s"
-                        width="100%" height="220" frameborder="0" loading="lazy">
-                    </iframe>
+                <!-- Connection & Message Chart -->
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-semibold text-secondary">
+                            <i class="fas fa-exchange-alt text-primary me-1"></i> Connections & Messages
+                        </span>
+                        <div class="d-flex gap-3 small">
+                            <span><i class="fas fa-circle" style="font-size: 8px; color: #6366f1;"></i> Connections</span>
+                            <span><i class="fas fa-circle" style="font-size: 8px; color: #10b981;"></i> Messages/min</span>
+                        </div>
+                    </div>
+                    <div class="chart-container" style="height: 180px; position: relative;">
+                        <canvas id="trafficChart"></canvas>
+                    </div>
                 </div>
-                <div class="chart-label">Connection Rate (Connect/Disconnect per second)</div>
             </div>
         </div>
         

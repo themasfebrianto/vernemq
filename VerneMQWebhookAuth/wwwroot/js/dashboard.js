@@ -515,6 +515,11 @@ const Monitoring = {
 
                 this.updateSignal('signalLatency', latency, [200, 500], `${latency}ms`);
 
+                // Update live charts
+                if (window.LiveCharts) {
+                    LiveCharts.updateTrafficData(currentConnections, currentMessages);
+                }
+
             } else {
                 this.updateStatusCard('vernemq', false);
                 this.showAlert('vernemq-offline', 'VerneMQ Broker Offline',
@@ -792,6 +797,315 @@ const Monitoring = {
     clearAlert(id) {
         const alert = document.getElementById(`alert-${id}`);
         if (alert) alert.remove();
+    },
+
+    // Track last fetch timestamp for delta calculations
+    lastActivityFetch: null,
+    lastAuthSuccess: 0,
+    lastAuthFailed: 0,
+
+    async loadMqttActivityStats() {
+        try {
+            // Fetch recent MQTT activity to calculate auth success/failure rates
+            const response = await API.get('/api/system/mqtt-activity?pageSize=100');
+            if (response.ok) {
+                const data = await response.json();
+                const logs = data.items || [];
+
+                const now = new Date();
+                const tenSecondsAgo = new Date(now - 10000);
+
+                // Count auth events in the last 10 seconds
+                let successCount = 0;
+                let failedCount = 0;
+
+                logs.forEach(log => {
+                    const logTime = new Date(log.timestamp);
+                    if (log.eventType === 'Auth' && logTime >= tenSecondsAgo) {
+                        if (log.result === 'Success') {
+                            successCount++;
+                        } else {
+                            failedCount++;
+                        }
+                    }
+                });
+
+                // Update charts with delta values
+                if (window.LiveCharts) {
+                    LiveCharts.updateAuthData(successCount, failedCount);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading MQTT activity stats:', error);
+        }
+    }
+};
+
+// =============================================================================
+// LIVE CHARTS
+// =============================================================================
+
+const LiveCharts = {
+    authChart: null,
+    trafficChart: null,
+    maxDataPoints: 60,
+
+    // Data arrays for charts
+    authData: {
+        labels: [],
+        success: [],
+        failed: []
+    },
+    trafficData: {
+        labels: [],
+        connections: [],
+        messages: []
+    },
+
+    // Cumulative counters
+    totalAuthSuccess: 0,
+    totalAuthFailed: 0,
+
+    init() {
+        // Get max data points from dropdown
+        const rangeSelect = document.getElementById('chartTimeRange');
+        if (rangeSelect) {
+            this.maxDataPoints = parseInt(rangeSelect.value) || 60;
+            rangeSelect.addEventListener('change', (e) => {
+                this.maxDataPoints = parseInt(e.target.value) || 60;
+                this.trimData();
+            });
+        }
+
+        this.initAuthChart();
+        this.initTrafficChart();
+    },
+
+    initAuthChart() {
+        const ctx = document.getElementById('authActivityChart');
+        if (!ctx) return;
+
+        this.authChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: this.authData.labels,
+                datasets: [
+                    {
+                        label: 'Success',
+                        data: this.authData.success,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    },
+                    {
+                        label: 'Failed',
+                        data: this.authData.failed,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        displayColors: true
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            maxTicksLimit: 6,
+                            font: { size: 10 }
+                        }
+                    },
+                    y: {
+                        display: true,
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            stepSize: 1,
+                            font: { size: 10 }
+                        }
+                    }
+                },
+                animation: { duration: 300 }
+            }
+        });
+    },
+
+    initTrafficChart() {
+        const ctx = document.getElementById('trafficChart');
+        if (!ctx) return;
+
+        this.trafficChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: this.trafficData.labels,
+                datasets: [
+                    {
+                        label: 'Connections',
+                        data: this.trafficData.connections,
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Messages/min',
+                        data: this.trafficData.messages,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        displayColors: true
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            maxTicksLimit: 6,
+                            font: { size: 10 }
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: {
+                            color: '#6366f1',
+                            font: { size: 10 }
+                        },
+                        title: {
+                            display: false
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false },
+                        ticks: {
+                            color: '#10b981',
+                            font: { size: 10 }
+                        },
+                        title: {
+                            display: false
+                        }
+                    }
+                },
+                animation: { duration: 300 }
+            }
+        });
+    },
+
+    updateAuthData(successDelta, failedDelta) {
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        this.authData.labels.push(timeLabel);
+        this.authData.success.push(successDelta);
+        this.authData.failed.push(failedDelta);
+
+        this.totalAuthSuccess += successDelta;
+        this.totalAuthFailed += failedDelta;
+
+        // Update counters in UI
+        const successEl = document.getElementById('authSuccessCount');
+        const failedEl = document.getElementById('authFailedCount');
+        if (successEl) successEl.textContent = this.totalAuthSuccess;
+        if (failedEl) failedEl.textContent = this.totalAuthFailed;
+
+        this.trimData();
+
+        if (this.authChart) {
+            this.authChart.update('none');
+        }
+    },
+
+    updateTrafficData(connections, messagesPerMin) {
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        this.trafficData.labels.push(timeLabel);
+        this.trafficData.connections.push(connections);
+        this.trafficData.messages.push(messagesPerMin);
+
+        this.trimData();
+
+        if (this.trafficChart) {
+            this.trafficChart.update('none');
+        }
+    },
+
+    trimData() {
+        // Trim auth data
+        while (this.authData.labels.length > this.maxDataPoints) {
+            this.authData.labels.shift();
+            this.authData.success.shift();
+            this.authData.failed.shift();
+        }
+
+        // Trim traffic data
+        while (this.trafficData.labels.length > this.maxDataPoints) {
+            this.trafficData.labels.shift();
+            this.trafficData.connections.shift();
+            this.trafficData.messages.shift();
+        }
     }
 };
 
@@ -997,6 +1311,11 @@ function refreshAllData() {
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', function () {
+    // Initialize live charts
+    if (typeof Chart !== 'undefined') {
+        LiveCharts.init();
+    }
+
     // Initial data load
     MqttUsers.load();
     MqttUsers.loadStats();
@@ -1004,11 +1323,17 @@ document.addEventListener('DOMContentLoaded', function () {
     Monitoring.loadVerneMQMetrics();
     Monitoring.loadSystemStatistics();
     Monitoring.loadExecutionLogs();
+    Monitoring.loadMqttActivityStats();
     if (window.LogsTab) LogsTab.loadMqttLogs();
+
+    // Fast refresh for charts (every 10 seconds)
+    setInterval(() => {
+        Monitoring.loadVerneMQMetrics();
+        Monitoring.loadMqttActivityStats();
+    }, 10000);
 
     // Auto-refresh monitoring data every 30 seconds
     DashboardState.refreshInterval = setInterval(() => {
-        Monitoring.loadVerneMQMetrics();
         Monitoring.loadSystemStatistics();
         Monitoring.loadExecutionLogs();
         if (window.LogsTab && LogsTab.currentTab === 'mqtt') LogsTab.loadMqttLogs();
