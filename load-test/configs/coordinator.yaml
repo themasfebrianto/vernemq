@@ -1,0 +1,27 @@
+# Coordinator Configuration
+# Run this on a dedicated machine to coordinate distributed tests
+
+coordinator:
+  bind_addr: 0.0.0.0
+  bind_port: 8080
+  advertise_addr: loadtest-coordinator.example.com
+  advertise_port: 8080
+
+# Node discovery
+discovery:
+  type: static
+  nodes:
+    - loadtest-node-1.example.com:8081
+    - loadtest-node-2.example.com:8081
+    - loadtest-node-3.example.com:8081
+    - loadtest-node-4.example.com:8081
+
+# Reporting
+report:
+  output: ./results/coordinator
+  format: json
+
+# Logging
+logging:
+  level: info
+  format: json

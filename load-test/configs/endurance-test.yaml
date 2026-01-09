@@ -1,0 +1,90 @@
+# Endurance Test Configuration
+# Tests system stability over extended periods (hours)
+# Checks for memory leaks, connection pool exhaustion, etc.
+
+target:
+  base_url: http://api.example.com
+  protocol: http
+  host: api.example.com
+  port: 8080
+  path: /api
+  timeout: 30s
+  keep_alive: true
+  max_connections: 100
+  max_idle_connections: 50
+
+# Moderate, sustained load for extended period
+virtual_users: 100
+duration: 3600s  # 1 hour (increase to 4h or 24h for real endurance tests)
+ramp_up: 30s
+
+# Realistic workload pattern
+requests:
+  # Dashboard API (most common)
+  - name: "dashboard_stats"
+    method: GET
+    endpoint: /dashboard/stats
+    weight: 5
+
+  - name: "dashboard_recent"
+    method: GET
+    endpoint: /dashboard/recent
+    weight: 3
+
+  # User operations
+  - name: "user_profile"
+    method: GET
+    endpoint: /users/me
+    weight: 2
+
+  - name: "update_profile"
+    method: PATCH
+    endpoint: /users/me
+    body: '{}'
+    weight: 1
+    think_time: 1s
+    headers:
+      Content-Type: application/json
+
+  # Search operations
+  - name: "search"
+    method: GET
+    endpoint: /search?q={query}
+    weight: 2
+    think_time: 500ms
+
+  # Background operations
+  - name: "notifications"
+    method: GET
+    endpoint: /notifications
+    weight: 1
+
+headers:
+  User-Agent: loadtest-endurance/1.0
+  Accept: application/json
+  Authorization: Bearer ${AUTH_TOKEN}
+
+auth:
+  type: bearer
+  token: ${AUTH_TOKEN}
+
+distributed:
+  enabled: false
+
+report:
+  output: ./results/endurance-test
+  format: json
+  interval: 60s  # Report every minute
+  percentiles:
+    - 50
+    - 90
+    - 95
+    - 99
+  detailed: true
+
+# Monitoring suggestions for endurance tests:
+# - Monitor memory usage (should be stable, no leaks)
+# - Monitor connection pool usage (should not grow unbounded)
+# - Monitor CPU usage (should be consistent)
+# - Check for gradual increase in response times
+# - Monitor error rates (should remain low)

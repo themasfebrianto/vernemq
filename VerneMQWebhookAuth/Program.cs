@@ -8,6 +8,7 @@ using Serilog;
 using System.Security.Cryptography;
 using System.Text;
 using Prometheus;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,8 +27,33 @@ builder.Services.AddControllers();
 builder.Services.AddRazorPages();
 builder.Services.AddEndpointsApiExplorer();
 
-// Add Memory Cache for auth caching
+// Add Memory Cache (always available as fallback)
 builder.Services.AddMemoryCache();
+
+// Add Redis Distributed Cache if enabled
+var redisEnabled = builder.Configuration.GetValue<bool>("Redis:Enabled", false);
+var redisConnection = builder.Configuration.GetValue<string>("Redis:ConnectionString");
+
+if (redisEnabled && !string.IsNullOrEmpty(redisConnection))
+{
+    Log.Information("Redis caching enabled, connecting to: {RedisHost}", redisConnection);
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnection;
+        options.InstanceName = "VerneMQ_";
+    });
+}
+else
+{
+    Log.Information("Redis caching disabled, using memory cache only");
+    // Register a dummy distributed cache that won't be used
+    builder.Services.AddDistributedMemoryCache();
+}
+
+// Add Hybrid Cache Service (Redis primary, Memory fallback)
+builder.Services.AddSingleton<VerneMQWebhookAuth.Services.IHybridCacheService, 
+    VerneMQWebhookAuth.Services.HybridCacheService>();
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo

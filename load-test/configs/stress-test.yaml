@@ -1,0 +1,94 @@
+# Stress Test Configuration
+# This configuration is designed to push the system to its limits
+# Gradually increases load to find breaking point
+
+target:
+  base_url: http://api.example.com
+  protocol: https
+  host: api.example.com
+  port: 443
+  path: /v1
+  timeout: 10s
+  keep_alive: true
+  max_connections: 500
+  max_idle_connections: 200
+
+# Stress test: start with 100 users, ramp up to 1000
+virtual_users: 1000
+duration: 300s  # 5 minutes
+ramp_up: 60s    # 1 minute ramp up
+
+# Heavy request mix
+requests:
+  # Read-heavy workload (70%)
+  - name: "get_user"
+    method: GET
+    endpoint: /users/{id}
+    weight: 3
+
+  - name: "list_users"
+    method: GET
+    endpoint: /users
+    weight: 2
+
+  - name: "search_users"
+    method: GET
+    endpoint: /users/search?q={query}
+    weight: 2
+
+  # Write workload (30%)
+  - name: "create_user"
+    method: POST
+    endpoint: /users
+    body: '{"name": "{name}", "email": "{email}"}'
+    weight: 1
+    think_time: 500ms
+    headers:
+      Content-Type: application/json
+
+  - name: "update_user"
+    method: PUT
+    endpoint: /users/{id}
+    body: '{"name": "{name}"}'
+    weight: 1
+    think_time: 200ms
+    headers:
+      Content-Type: application/json
+
+  - name: "delete_user"
+    method: DELETE
+    endpoint: /users/{id}
+    weight: 1
+
+# Response expectations
+expected:
+  status_codes:
+    - 200
+    - 201
+    - 204
+  max_latency: 2000  # 2 seconds max latency
+  content_type: application/json
+
+headers:
+  User-Agent: loadtest-stress/1.0
+  Accept: application/json
+  X-Request-ID: {uuid}
+
+auth:
+  type: bearer
+  token: ${API_TOKEN}
+
+distributed:
+  enabled: false
+
+report:
+  output: ./results/stress-test
+  format: json
+  percentiles:
+    - 50
+    - 90
+    - 95
+    - 99
+    - 99.9
+  detailed: true
+  interval: 10s

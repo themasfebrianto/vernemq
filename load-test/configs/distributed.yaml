@@ -1,0 +1,94 @@
+# Distributed Load Test Configuration
+# Runs load test across multiple nodes for higher throughput
+
+target:
+  base_url: http://api.example.com
+  protocol: https
+  host: api.example.com
+  port: 443
+  path: /api/v2
+  timeout: 30s
+  keep_alive: true
+  max_connections: 200
+  max_idle_connections: 100
+
+# Total virtual users distributed across nodes
+virtual_users: 2000  # 2000 users total
+duration: 300s
+ramp_up: 60s
+
+# High-throughput request mix
+requests:
+  - name: "fast_read"
+    method: GET
+    endpoint: /cache/{key}
+    weight: 10
+
+  - name: "fast_write"
+    method: POST
+    endpoint: /cache
+    body: '{"key": "{key}", "value": "{value}"}'
+    weight: 5
+    headers:
+      Content-Type: application/json
+
+  - name: "search_fast"
+    method: GET
+    endpoint: /search/fast?q={query}
+    weight: 3
+
+  - name: "batch_read"
+    method: POST
+    endpoint: /batch/get
+    body: '{"keys": ["{key1}", "{key2}"]}'
+    weight: 2
+    headers:
+      Content-Type: application/json
+
+headers:
+  User-Agent: loadtest-distributed/1.0
+  X-Client-ID: ${NODE_ID}
+  Accept: application/json
+
+auth:
+  type: api_key
+  api_key: ${API_KEY}
+
+# Distributed configuration
+distributed:
+  enabled: true
+  coordinator: loadtest-coordinator.example.com:8080
+  node_id: ${NODE_ID:-node-auto}
+  nodes:
+    - loadtest-node-1.example.com:8081
+    - loadtest-node-2.example.com:8081
+    - loadtest-node-3.example.com:8081
+    - loadtest-node-4.example.com:8081
+  bind_addr: 0.0.0.0
+  bind_port: 8081
+  advertise_addr: ${HOST_IP}
+  advertise_port: 8081
+  join_attempts: 5
+  retry_interval: 5s
+  tags:
+    region: us-east-1
+    role: loadtest-node
+
+report:
+  output: ./results/distributed-test-{timestamp}
+  format: json
+  interval: 10s
+  percentiles:
+    - 50
+    - 90
+    - 95
+    - 99
+    - 99.9
+  detailed: true
+
+# Coordinator configuration (when running as coordinator)
+coordinator:
+  bind_addr: 0.0.0.0
+  bind_port: 8080
+  advertise_addr: loadtest-coordinator.example.com
+  advertise_port: 8080

@@ -1,0 +1,41 @@
+# Worker Node Configuration
+# Run this on each worker node that will participate in distributed tests
+
+distributed:
+  enabled: true
+  coordinator: loadtest-coordinator.example.com:8080
+  node_id: ${HOSTNAME:-node-local}
+  bind_addr: 0.0.0.0
+  bind_port: 8081
+  advertise_addr: ${EXTERNAL_IP:-$(hostname -I | awk '{print $1}')}
+  advertise_port: 8081
+  join_attempts: 10
+  retry_interval: 5s
+  tags:
+    region: ${REGION:-us-east-1}
+    availability_zone: ${AZ:-us-east-1a}
+    instance_type: ${INSTANCE_TYPE:-c5.xlarge}
+
+# Local resource limits
+resources:
+  max_virtual_users: 500
+  max_concurrent_requests: 1000
+  memory_limit_mb: 1024
+  cpu_limit: 0
+
+# Heartbeat and health check
+health:
+  interval: 5s
+  timeout: 3s
+  failure_threshold: 3
+
+# Reporting
+report:
+  output: ./results/node-${HOSTNAME}
+  format: json
+  interval: 10s
+
+# Logging
+logging:
+  level: info
+  format: json

@@ -1,28 +1,27 @@
 # =============================================================================
-# VerneMQ Load Test Runner
+# Go Load Test Runner
 # =============================================================================
-# Run this script to execute MQTT load tests against your local VerneMQ instance
+# Run this script to execute HTTP load tests using the Go-based load tester
 # 
 # Usage:
-#   .\run-load-test.ps1               # Run with default (light) preset
-#   .\run-load-test.ps1 -Preset light  # 5 clients, 2s interval, 60s
-#   .\run-load-test.ps1 -Preset medium # 20 clients, 500ms interval, 120s  
-#   .\run-load-test.ps1 -Preset heavy  # 50 clients, 100ms interval, 300s
-#   .\run-load-test.ps1 -Custom -Clients 30 -Interval 200 -Duration 120
+#   .\run-load-test.ps1                    # Run with default (basic) preset
+#   .\run-load-test.ps1 -Preset basic      # Basic load test (50 VUs, 60s)
+#   .\run-load-test.ps1 -Preset stress     # Stress test (push to breaking point)
+#   .\run-load-test.ps1 -Preset endurance  # Endurance test (long duration)
+#   .\run-load-test.ps1 -Preset spike      # Spike test (sudden traffic surge)
+#   .\run-load-test.ps1 -Custom -VUs 100 -Duration 120 -Config .\configs\basic.yaml
 # =============================================================================
 
 param(
-    [ValidateSet("light", "medium", "heavy")]
-    [string]$Preset = "light",
+    [ValidateSet("basic", "stress", "endurance", "spike", "distributed")]
+    [string]$Preset = "basic",
     
     [switch]$Custom,
-    [int]$Clients = 10,
-    [int]$Interval = 1000,
+    [int]$VUs = 50,
     [int]$Duration = 60,
-    [string]$MqttHost = "localhost",
-    [int]$Port = 1883,
-    [ValidateSet(0, 1, 2)]
-    [int]$QoS = 1
+    [string]$Config = "",
+    [string]$Target = "http://localhost:8080",
+    [int]$RampUp = 10
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,81 +38,81 @@ function Write-ColorOutput($ForegroundColor) {
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "         VerneMQ Load Test Runner                           " -ForegroundColor Cyan
+Write-Host "         Go Load Test Runner                               " -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
-
-# Check if Node.js is installed
-try {
-    $nodeVersion = node --version
-    Write-Host "[OK] Node.js installed: $nodeVersion" -ForegroundColor Green
-} catch {
-    Write-Host "[ERROR] Node.js is not installed. Please install Node.js first." -ForegroundColor Red
-    Write-Host "Download from: https://nodejs.org/" -ForegroundColor Yellow
-    exit 1
-}
 
 # Get script directory
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
 
-# Check if node_modules exists, if not run npm install
-if (-not (Test-Path "node_modules")) {
-    Write-Host "[INFO] Installing dependencies..." -ForegroundColor Yellow
-    npm install
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] Failed to install dependencies" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "[OK] Dependencies installed" -ForegroundColor Green
+# Check if Go is installed
+try {
+    $goVersion = go version
+    Write-Host "[OK] Go installed: $goVersion" -ForegroundColor Green
+} catch {
+    Write-Host "[ERROR] Go is not installed. Please install Go first." -ForegroundColor Red
+    Write-Host "Download from: https://go.dev/dl/" -ForegroundColor Yellow
+    exit 1
 }
 
-# Check if VerneMQ is running
-Write-Host ""
-Write-Host "[INFO] Checking VerneMQ status..." -ForegroundColor Yellow
-try {
-    $response = Invoke-RestMethod -Uri "http://localhost:8888/health" -Method GET -TimeoutSec 5
-    if ($response.status -eq "OK") {
-        Write-Host "[OK] VerneMQ is running and healthy" -ForegroundColor Green
-    }
-} catch {
-    Write-Host "[WARNING] Cannot reach VerneMQ health endpoint. Make sure VerneMQ is running." -ForegroundColor Yellow
-    Write-Host "         Run 'docker-compose up -d' in the vernemq directory first." -ForegroundColor Yellow
-    $continue = Read-Host "Continue anyway? (y/n)"
-    if ($continue -ne "y") {
+# Build the loadtest binary if it doesn't exist
+$loadtestPath = Join-Path $scriptDir "loadtest.exe"
+if (-not (Test-Path $loadtestPath)) {
+    Write-Host "[INFO] Building loadtest binary..." -ForegroundColor Yellow
+    go build -o loadtest.exe ./cmd/loadtest
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Failed to build loadtest binary" -ForegroundColor Red
         exit 1
     }
+    Write-Host "[OK] Loadtest binary built successfully" -ForegroundColor Green
+} else {
+    Write-Host "[OK] Loadtest binary found" -ForegroundColor Green
 }
 
 # Build command based on preset or custom
 Write-Host ""
 if ($Custom) {
     Write-Host "[INFO] Running CUSTOM load test..." -ForegroundColor Cyan
-    Write-Host "       Clients:  $Clients" -ForegroundColor White
-    Write-Host "       Interval: ${Interval}ms" -ForegroundColor White
-    Write-Host "       Duration: ${Duration}s" -ForegroundColor White
-    Write-Host "       Host:     ${MqttHost}:${Port}" -ForegroundColor White
-    Write-Host "       QoS:      $QoS" -ForegroundColor White
+    Write-Host "       Virtual Users: $VUs" -ForegroundColor White
+    Write-Host "       Duration:      ${Duration}s" -ForegroundColor White
+    Write-Host "       Ramp Up:       ${RampUp}s" -ForegroundColor White
+    Write-Host "       Target:        $Target" -ForegroundColor White
     Write-Host ""
     
-    $cmd = "node worker.js --host $MqttHost --port $Port --clients $Clients --interval $Interval --duration $Duration --qos $QoS"
+    if ($Config -and (Test-Path $Config)) {
+        $cmd = ".\loadtest.exe run `"$Config`""
+    } else {
+        $cmd = ".\loadtest.exe run configs\basic.yaml --virtual-users=$VUs --duration=${Duration}s --ramp-up=${RampUp}s --target=$Target"
+    }
 } else {
     Write-Host "[INFO] Running $($Preset.ToUpper()) preset load test..." -ForegroundColor Cyan
     
     switch ($Preset) {
-        "light" {
-            Write-Host "       5 clients, 2s interval, 60s duration" -ForegroundColor White
+        "basic" {
+            Write-Host "       50 virtual users, 60s duration, 10s ramp-up" -ForegroundColor White
+            $configFile = "configs\basic.yaml"
         }
-        "medium" {
-            Write-Host "       20 clients, 500ms interval, 120s duration" -ForegroundColor White
+        "stress" {
+            Write-Host "       Stress test configuration" -ForegroundColor White
+            $configFile = "configs\stress-test.yaml"
         }
-        "heavy" {
-            Write-Host "       50 clients, 100ms interval, 300s duration" -ForegroundColor White
+        "endurance" {
+            Write-Host "       Endurance test configuration" -ForegroundColor White
+            $configFile = "configs\endurance-test.yaml"
+        }
+        "spike" {
+            Write-Host "       Spike test configuration" -ForegroundColor White
+            $configFile = "configs\spike-test.yaml"
+        }
+        "distributed" {
+            Write-Host "       Distributed test configuration" -ForegroundColor White
+            $configFile = "configs\distributed.yaml"
         }
     }
     Write-Host ""
     
-    $cmd = "npm run $Preset"
+    $cmd = ".\loadtest.exe run $configFile"
 }
 
 Write-Host "============================================================" -ForegroundColor Cyan
@@ -124,9 +123,8 @@ Invoke-Expression $cmd
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "         Load Test Complete!                                " -ForegroundColor Green
+Write-Host "         Load Test Complete!                               " -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Check the Monitoring dashboard at: http://localhost:5000" -ForegroundColor Yellow
-Write-Host "Check Grafana metrics at: http://localhost:3030" -ForegroundColor Yellow
+Write-Host "Results have been saved to the results directory." -ForegroundColor Yellow
 Write-Host ""

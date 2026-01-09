@@ -12,6 +12,25 @@ services:
     volumes:
       - webhook_data:/app/data
       - webhook_logs:/app/logs
+    # Resource limits for 1000+ RTU support
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      # Connection pooling for high load
+      - DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER=1
+      # Redis connection for distributed caching
+      - Redis__ConnectionString=redis:6379
+      - Redis__Enabled=true
+    depends_on:
+      redis:
+        condition: service_healthy
 
   vernemq:
     image: vernemq/vernemq:latest
@@ -21,9 +40,29 @@ services:
       - "8883:8883"   # MQTT over TLS
       - "8080:8080"
       - "8888:8888"
+    # Resource limits for 1000+ RTU support
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
     environment:
       - DOCKER_VERNEMQ_ACCEPT_EULA=yes
       - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=off
+      # ========== Performance Tuning for 1000+ Connections ==========
+      # Max connections per listener (default: infinity, set explicit limit)
+      - DOCKER_VERNEMQ_LISTENER__TCP__DEFAULT__MAX_CONNECTIONS=2000
+      # Erlang VM tuning
+      - DOCKER_VERNEMQ_ERLANG__MAX_PORTS=65536
+      - DOCKER_VERNEMQ_ERLANG__PROCESS_LIMIT=262144
+      # Queue settings
+      - DOCKER_VERNEMQ_MAX_ONLINE_MESSAGES=1000
+      - DOCKER_VERNEMQ_MAX_OFFLINE_MESSAGES=1000
+      # Webhook pool size (increase for high load)
+      - DOCKER_VERNEMQ_VMQ_WEBHOOKS__POOL_SIZE=32
       # Enable the webhooks plugin
       - DOCKER_VERNEMQ_PLUGINS__VMQ_WEBHOOKS=on
       # Webhook for client authentication
@@ -58,6 +97,34 @@ services:
       - vernemq_data:/opt/vernemq/data
     depends_on:
       - webhook-auth
+    restart: always
+    networks:
+      - vernemq-network
+
+  # ========== Redis Cache for High-Performance Auth ==========
+  
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
     restart: always
     networks:
       - vernemq-network
@@ -152,4 +219,5 @@ volumes:
   vernemq_data:
   webhook_data:
   webhook_logs:
+  redis_data:
 

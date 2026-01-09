@@ -1,0 +1,67 @@
+# Basic Load Test Configuration
+# This is a simple load test with 50 virtual users for 60 seconds
+
+target:
+  base_url: http://localhost:8080
+  protocol: http
+  host: localhost
+  port: 8080
+  path: /
+  timeout: 30s
+  keep_alive: true
+  max_connections: 100
+  max_idle_connections: 100
+
+virtual_users: 50
+duration: 60s
+ramp_up: 10s
+
+# Request definitions with weights
+requests:
+  - name: "homepage"
+    method: GET
+    endpoint: /
+    weight: 1
+
+  - name: "api_users"
+    method: GET
+    endpoint: /api/users
+    weight: 2
+
+  - name: "api_user_create"
+    method: POST
+    endpoint: /api/users
+    body: '{"name": "test", "email": "test@example.com"}'
+    weight: 1
+    headers:
+      Content-Type: application/json
+
+# Global headers
+headers:
+  User-Agent: loadtest/1.0
+  Accept: application/json
+
+# Authentication (optional)
+auth:
+  type: bearer
+  token: ${TOKEN}
+
+# Distributed testing configuration
+distributed:
+  enabled: false
+  coordinator: coordinator.example.com:8080
+  nodes:
+    - node1.example.com:8081
+    - node2.example.com:8081
+
+# Reporting configuration
+report:
+  output: stdout
+  format: console
+  percentiles:
+    - 50
+    - 90
+    - 95
+    - 99
+    - 99.9
+  detailed: true
