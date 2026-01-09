@@ -296,6 +296,11 @@ func runLoadTest(cmd *cobra.Command, args []string) {
 	clientList := make([]*MQTTLoadClient, clients)
 	var wg sync.WaitGroup
 
+	// Semaphore to limit concurrent connections (prevents TCP backlog overwhelm)
+	// Adjust based on broker capacity - 10-20 is typically safe for single-machine tests
+	maxConcurrentConns := 20
+	semaphore := make(chan struct{}, maxConcurrentConns)
+
 	for i := 0; i < clients; i++ {
 		// Generate unique RTU ID: rtuPrefix + sequential number (with leading zeros)
 		rtuID := fmt.Sprintf("%s%d", rtuPrefix, i+1)
@@ -318,12 +323,17 @@ func runLoadTest(cmd *cobra.Command, args []string) {
 			Done:  make(chan struct{}),
 		}
 
-		// Stagger connections
-		time.Sleep(50 * time.Millisecond)
+		// Small stagger to prevent thundering herd at semaphore acquisition
+		time.Sleep(20 * time.Millisecond)
 
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
+
+			// Acquire semaphore slot (blocks if max concurrent connections reached)
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }() // Release slot when done
+
 			if err := clientList[idx].Connect(); err != nil && verbose {
 				fmt.Printf("⚠️  Client %d failed to connect: %v\n", idx+1, err)
 			}

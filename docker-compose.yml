@@ -54,7 +54,8 @@ services:
       - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=off
       # ========== Performance Tuning for 1000+ Connections ==========
       # Max connections per listener (default: infinity, set explicit limit)
-      - DOCKER_VERNEMQ_LISTENER__TCP__DEFAULT__MAX_CONNECTIONS=2000
+      # Increased to support 10000+ RTU load testing
+      - DOCKER_VERNEMQ_LISTENER__TCP__DEFAULT__MAX_CONNECTIONS=10000
       # Erlang VM tuning
       - DOCKER_VERNEMQ_ERLANG__MAX_PORTS=65536
       - DOCKER_VERNEMQ_ERLANG__PROCESS_LIMIT=262144

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using VerneMQWebhookAuth.Data;
 using VerneMQWebhookAuth.Models;
@@ -13,6 +14,7 @@ namespace VerneMQWebhookAuth.Controllers;
 /// </summary>
 [ApiController]
 [Route("mqtt")]
+[EnableRateLimiting("mqtt-webhook")]  // High-capacity rate limiter for load testing
 public class WebhookController : ControllerBase
 {
     private readonly ILogger<WebhookController> _logger;

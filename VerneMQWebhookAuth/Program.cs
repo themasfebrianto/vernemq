@@ -98,19 +98,39 @@ builder.Services.AddCors(options =>
 // Add Rate Limiting
 builder.Services.AddRateLimiter(options =>
 {
+    // API rate limiter for dashboard routes
     options.AddFixedWindowLimiter("api", opt =>
     {
         opt.Window = TimeSpan.FromMinutes(1);
         opt.PermitLimit = 60;
     });
 
+    // Webhook test limiter (low limit for testing)
     options.AddFixedWindowLimiter("webhook-test", opt =>
     {
         opt.Window = TimeSpan.FromMinutes(1);
         opt.PermitLimit = 10;
     });
 
+    // MQTT webhook limiter - high capacity for load testing (10000 req/min)
+    options.AddFixedWindowLimiter("mqtt-webhook", opt =>
+    {
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.PermitLimit = 10000;
+        opt.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 1000;
+    });
+
     options.RejectionStatusCode = 429;
+});
+
+// Increase Kestrel server limits for high connection load
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxConcurrentConnections = 10000;
+    options.Limits.MaxConcurrentUpgradedConnections = 10000;
+    options.Limits.MaxRequestBodySize = 1048576; // 1 MB
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(30);
 });
 
 // Add HttpClient for webhook execution

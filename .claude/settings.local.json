@@ -14,7 +14,10 @@
       "Bash(go mod tidy:*)",
       "Bash(go build:*)",
       "Bash(./mqtt-loadtest.exe:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Skill(glm-plan-usage:usage-query-skill)",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:systematic-debugging)"
     ]
   }
 }
