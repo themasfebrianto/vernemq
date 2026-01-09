@@ -297,8 +297,8 @@ func runLoadTest(cmd *cobra.Command, args []string) {
 	var wg sync.WaitGroup
 
 	// Semaphore to limit concurrent connections (prevents TCP backlog overwhelm)
-	// Adjust based on broker capacity - 10-20 is typically safe for single-machine tests
-	maxConcurrentConns := 20
+	// Adjust based on broker capacity - 50 is safe for properly configured brokers
+	maxConcurrentConns := 50
 	semaphore := make(chan struct{}, maxConcurrentConns)
 
 	for i := 0; i < clients; i++ {

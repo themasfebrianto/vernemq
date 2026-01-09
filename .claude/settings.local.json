@@ -17,7 +17,9 @@
       "Bash(git add:*)",
       "Skill(glm-plan-usage:usage-query-skill)",
       "Skill(superpowers:writing-plans)",
-      "Skill(superpowers:systematic-debugging)"
+      "Skill(superpowers:systematic-debugging)",
+      "Bash(docker ps:*)",
+      "Bash(docker logs:*)"
     ]
   }
 }
