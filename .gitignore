@@ -78,8 +78,6 @@ artifacts/
 # Don't ignore docker-compose, but ignore generated data
 data/
 vernemq-data/
-prometheus-data/
-grafana-data/
 
 # ----------------------------------------
 # Environment & Secrets

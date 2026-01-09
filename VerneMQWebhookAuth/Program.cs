@@ -7,7 +7,6 @@ using VerneMQWebhookAuth.Services;
 using Serilog;
 using System.Security.Cryptography;
 using System.Text;
-using Prometheus;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -206,9 +205,6 @@ else
 // Enable serving static files from wwwroot
 app.UseStaticFiles();
 
-// Enable Prometheus HTTP request metrics
-app.UseHttpMetrics();
-
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -216,9 +212,6 @@ app.MapControllers();
 app.MapRazorPages();
 app.MapHub<VerneMQWebhookAuth.Hubs.WebhookHub>("/webhookHub");
 app.MapHealthChecks("/health");
-
-// Map Prometheus metrics endpoint (no auth required for Prometheus scraping)
-app.MapMetrics();
 
 // Default route to the main page
 app.MapGet("/", async context =>

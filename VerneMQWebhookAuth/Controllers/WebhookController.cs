@@ -73,9 +73,6 @@ public class WebhookController : ControllerBase
                 ErrorReason = "missing_credentials"
             }));
             
-            // Track metrics
-            AppMetrics.MqttAuthAttempts.WithLabels("failure").Inc();
-            
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "missing_credentials" } });
         }
 
@@ -89,9 +86,6 @@ public class WebhookController : ControllerBase
             _logger.LogDebug("Auth cache HIT for user: {Username}", request.Username);
             // Update login stats (fire and forget)
             _ = UpdateLoginStats(cachedAuth.UserId, request.PeerAddr);
-            
-            // Track metrics
-            AppMetrics.MqttAuthAttempts.WithLabels("success").Inc();
             
             return Ok(new VerneMQResponse { Result = "ok" });
         }
@@ -118,10 +112,7 @@ public class WebhookController : ControllerBase
                 PeerAddr = request.PeerAddr,
                 ErrorReason = "invalid_credentials"
             }));
-            
-            // Track metrics
-            AppMetrics.MqttAuthAttempts.WithLabels("failure").Inc();
-            
+
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "invalid_credentials" } });
         }
 
@@ -144,10 +135,7 @@ public class WebhookController : ControllerBase
                 PeerAddr = request.PeerAddr,
                 ErrorReason = "invalid_credentials"
             }));
-            
-            // Track metrics
-            AppMetrics.MqttAuthAttempts.WithLabels("failure").Inc();
-            
+
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "invalid_credentials" } });
         }
 
@@ -173,10 +161,7 @@ public class WebhookController : ControllerBase
                 PeerAddr = request.PeerAddr,
                 ErrorReason = "client_id_mismatch"
             }));
-            
-            // Track metrics
-            AppMetrics.MqttAuthAttempts.WithLabels("failure").Inc();
-            
+
             return Ok(new VerneMQResponse { Result = new VerneMQErrorResult { Error = "client_id_mismatch" } });
         }
 
@@ -222,9 +207,6 @@ public class WebhookController : ControllerBase
         _ = _activityLogger.LogAsync(MqttEventTypes.Auth, MqttEventResult.Success,
             request.ClientId, request.Username, request.PeerAddr,
             details: $"Login berhasil. {cleanSession}");
-        
-        // Track metrics
-        AppMetrics.MqttAuthAttempts.WithLabels("success").Inc();
 
         _logger.LogInformation("Auth successful for user: {Username}", request.Username);
         return Ok(new VerneMQResponse { Result = "ok" });

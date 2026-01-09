@@ -95,7 +95,7 @@ This setup uses a **single container approach** rather than a clustered setup, m
 - **Container Runtime**: Docker with Docker Compose
 - **Operating System**: Debian-based (slim)
 - **MQTT Broker**: VerneMQ (latest version)
-- **Monitoring**: Health checks and Prometheus metrics
+- **Monitoring**: Health checks and metrics endpoint
 
 ---
 
@@ -673,9 +673,6 @@ curl http://localhost:8888/api/v1/sessions
 
 # Topic metrics
 curl http://localhost:8888/api/v1/topics
-
-# Prometheus metrics (if enabled)
-curl http://localhost:8889/metrics
 ```
 
 #### WebSocket Testing
@@ -796,9 +793,6 @@ GET /api/v1/sessions/{client_id}
 # Topic information
 GET /api/v1/topics
 GET /api/v1/topics/{topic}
-
-# Metrics (if enabled)
-GET /metrics  # Prometheus format
 ```
 
 #### Management Examples
@@ -1103,29 +1097,6 @@ vernemq:
     - VERNEMQ_PLUGIN_VMQ_DIVERSITY=on
     - VERNEMQ_VMQ_DIVERSITY_AUTH_BACKEND=vmq_plugin
 ```
-
-### Monitoring Integration
-
-#### Prometheus Metrics
-```bash
-# Enable metrics in .env.prod
-VERNE_MQ_METRICS_ENABLED=on
-VERNE_MQ_METRICS_LISTENER=127.0.0.1:8889
-
-# Scrape configuration for Prometheus
-# prometheus.yml
-scrape_configs:
-  - job_name: 'vernemq'
-    static_configs:
-      - targets: ['vernemq-host:8889']
-    metrics_path: /metrics
-```
-
-#### Grafana Dashboard
-Import the VerneMQ dashboard for Grafana:
-- Dashboard ID: Search "VerneMQ" in Grafana dashboard repository
-- Metrics: Connection counts, message rates, memory usage
-- Alerts: High connection counts, memory usage, message failures
 
 ### Backup and Recovery
 

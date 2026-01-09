@@ -116,10 +116,10 @@ public class SystemController : ControllerBase
             // Apply filters
             if (!string.IsNullOrEmpty(eventType))
                 query = query.Where(l => l.EventType == eventType);
-            
+
             if (!string.IsNullOrEmpty(result) && Enum.TryParse<MqttEventResult>(result, true, out var resultEnum))
                 query = query.Where(l => l.Result == resultEnum);
-            
+
             if (!string.IsNullOrEmpty(username))
                 query = query.Where(l => l.Username != null && l.Username.Contains(username));
 
@@ -156,6 +156,99 @@ public class SystemController : ControllerBase
         {
             _logger.LogError(ex, "Error fetching MQTT activity logs");
             return StatusCode(500, new { error = "Failed to fetch activity logs" });
+        }
+    }
+
+    /// <summary>
+    /// Get aggregated MQTT activity statistics (for high volume scenarios)
+    /// Returns summary stats grouped by event type, result, and top users
+    /// </summary>
+    [HttpGet("mqtt-activity-summary")]
+    public async Task<ActionResult<MqttActivitySummaryDto>> GetMqttActivitySummary(
+        [FromQuery] int minutes = 10,
+        [FromQuery] int topUsersCount = 20)
+    {
+        try
+        {
+            var since = DateTime.UtcNow.AddMinutes(-minutes);
+
+            // Get all logs within the time window
+            var recentLogs = await _context.MqttActivityLogs
+                .Where(l => l.Timestamp >= since)
+                .ToListAsync();
+
+            // Calculate statistics
+            var summary = new MqttActivitySummaryDto
+            {
+                TimeWindowMinutes = minutes,
+                TotalEvents = recentLogs.Count,
+                GeneratedAt = DateTime.UtcNow
+            };
+
+            // Count by event type
+            summary.ByEventType = recentLogs
+                .GroupBy(l => l.EventType)
+                .Select(g => new MqttActivityStatItem
+                {
+                    Label = g.Key,
+                    Count = g.Count(),
+                    Percentage = g.Count() * 100.0 / Math.Max(1, recentLogs.Count)
+                })
+                .OrderByDescending(x => x.Count)
+                .ToList();
+
+            // Count by result
+            summary.ByResult = recentLogs
+                .GroupBy(l => l.Result.ToString())
+                .Select(g => new MqttActivityStatItem
+                {
+                    Label = g.Key,
+                    Count = g.Count(),
+                    Percentage = g.Count() * 100.0 / Math.Max(1, recentLogs.Count)
+                })
+                .OrderByDescending(x => x.Count)
+                .ToList();
+
+            // Top users by activity
+            summary.TopUsers = recentLogs
+                .Where(l => !string.IsNullOrEmpty(l.Username))
+                .GroupBy(l => l.Username!)
+                .Select(g => new MqttUserActivityStat
+                {
+                    Username = g.Key,
+                    TotalEvents = g.Count(),
+                    SuccessfulEvents = g.Count(l => l.Result == MqttEventResult.Success),
+                    FailedEvents = g.Count(l => l.Result == MqttEventResult.Failed),
+                    LastSeen = g.Max(l => l.Timestamp)
+                })
+                .OrderByDescending(x => x.TotalEvents)
+                .Take(topUsersCount)
+                .ToList();
+
+            // Online users (connected, not disconnected)
+            var connectedClients = recentLogs
+                .Where(l => l.EventType == "Auth" && l.Result == MqttEventResult.Success)
+                .Select(l => l.Username)
+                .Distinct()
+                .ToHashSet();
+
+            var disconnectedClients = recentLogs
+                .Where(l => l.EventType == "Disconnect" && !string.IsNullOrEmpty(l.Username))
+                .Select(l => l.Username!)
+                .ToHashSet();
+
+            summary.OnlineUserCount = connectedClients.Except(disconnectedClients).Count();
+
+            // Error rate
+            var failedCount = recentLogs.Count(l => l.Result == MqttEventResult.Failed || l.Result == MqttEventResult.Denied);
+            summary.ErrorRate = recentLogs.Count > 0 ? (failedCount * 100.0 / recentLogs.Count) : 0;
+
+            return Ok(summary);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching MQTT activity summary");
+            return StatusCode(500, new { error = "Failed to fetch activity summary" });
         }
     }
 
@@ -747,4 +840,32 @@ public class MqttActivityLogsResponse
     public int TotalCount { get; set; }
     public int Page { get; set; }
     public int PageSize { get; set; }
+}
+
+public class MqttActivitySummaryDto
+{
+    public int TimeWindowMinutes { get; set; }
+    public int TotalEvents { get; set; }
+    public int OnlineUserCount { get; set; }
+    public double ErrorRate { get; set; }
+    public DateTime GeneratedAt { get; set; }
+    public List<MqttActivityStatItem> ByEventType { get; set; } = new();
+    public List<MqttActivityStatItem> ByResult { get; set; } = new();
+    public List<MqttUserActivityStat> TopUsers { get; set; } = new();
+}
+
+public class MqttActivityStatItem
+{
+    public string Label { get; set; } = string.Empty;
+    public int Count { get; set; }
+    public double Percentage { get; set; }
+}
+
+public class MqttUserActivityStat
+{
+    public string Username { get; set; } = string.Empty;
+    public int TotalEvents { get; set; }
+    public int SuccessfulEvents { get; set; }
+    public int FailedEvents { get; set; }
+    public DateTime LastSeen { get; set; }
 }

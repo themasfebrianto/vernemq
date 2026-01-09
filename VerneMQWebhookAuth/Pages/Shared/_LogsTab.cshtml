@@ -101,7 +101,7 @@
 <script>
 const LogsTab = {
     currentTab: 'mqtt',
-    
+
     showWebhookLogs() {
         this.currentTab = 'webhook';
         document.getElementById('btnWebhookLogs').classList.add('active');
@@ -111,7 +111,7 @@ const LogsTab = {
         document.getElementById('mqttEventTypeFilter').style.display = 'none';
         document.getElementById('mqttResultFilter').style.display = 'none';
     },
-    
+
     showMqttLogs() {
         this.currentTab = 'mqtt';
         document.getElementById('btnMqttLogs').classList.add('active');
@@ -122,22 +122,22 @@ const LogsTab = {
         document.getElementById('mqttResultFilter').style.display = 'block';
         this.loadMqttLogs();
     },
-    
+
     async loadMqttLogs() {
         const tbody = document.getElementById('mqttLogsTableBody');
         const eventType = document.getElementById('mqttEventTypeFilter').value;
         const result = document.getElementById('mqttResultFilter').value;
-        
+
         let url = '/api/system/mqtt-activity?pageSize=100';
         if (eventType) url += `&eventType=${eventType}`;
         if (result) url += `&result=${result}`;
-        
+
         try {
             const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
                 document.getElementById('mqttLogsCount').textContent = data.totalCount;
-                
+
                 if (data.items.length === 0) {
                     tbody.innerHTML = `
                         <tr>
@@ -149,12 +149,12 @@ const LogsTab = {
                     `;
                     return;
                 }
-                
+
                 tbody.innerHTML = data.items.map(log => {
                     // Determine what to show in Details column
                     let detailsContent = '-';
                     let detailsClass = 'small text-muted';
-                    
+
                     if (log.errorMessage) {
                         detailsContent = log.errorMessage;
                         detailsClass = 'small text-danger';
@@ -165,7 +165,7 @@ const LogsTab = {
                         detailsContent = `Topic: ${log.topic}`;
                         detailsClass = 'small text-info';
                     }
-                    
+
                     return `
                         <tr>
                             <td class="small fw-medium">${Utils.formatDateTime(log.timestamp)}</td>
@@ -190,7 +190,7 @@ const LogsTab = {
             `;
         }
     },
-    
+
     getEventBadgeClass(eventType) {
         switch (eventType) {
             case 'auth': return 'badge-info';
@@ -201,7 +201,7 @@ const LogsTab = {
             default: return 'badge-neutral';
         }
     },
-    
+
     getResultBadgeClass(result) {
         switch (result) {
             case 'Success': return 'badge-success';
@@ -210,7 +210,7 @@ const LogsTab = {
             default: return 'badge-neutral';
         }
     },
-    
+
     refresh() {
         if (this.currentTab === 'mqtt') {
             this.loadMqttLogs();
