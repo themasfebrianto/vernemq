@@ -121,13 +121,13 @@ if ($Custom) {
     }
     Write-Host ""
 
-    if ($Verbose) {
-        $cmd += " --verbose"
-    }
-
     # Add auth parameters for all presets
     if ($Username) {
         $cmd += " -u $Username -P $Password"
+    }
+
+    if ($Verbose) {
+        $cmd += " --verbose"
     }
 }
 
