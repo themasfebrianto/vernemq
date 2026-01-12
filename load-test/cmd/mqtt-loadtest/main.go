@@ -30,6 +30,8 @@ var (
 	retain       bool
 	clean        bool
 	verbose      bool
+	syncMode     bool   // Synchronized burst mode (all devices at 15-min intervals)
+	jitterSec    int    // Random jitter in seconds (default: ±5s)
 )
 
 // Statistics tracking
@@ -100,13 +102,18 @@ type ClientConfig struct {
 	Clean    bool
 }
 
+const (
+	maxRetryAttempts = 5
+	initialRetryDelay = 500 * time.Millisecond
+)
+
 func (c *MQTTLoadClient) Connect() error {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(c.Config.Broker)
 	opts.SetClientID(c.ClientID)
 	opts.SetCleanSession(c.Config.Clean)
 	opts.SetAutoReconnect(false)
-	opts.SetConnectTimeout(30 * time.Second)
+	opts.SetConnectTimeout(15 * time.Second)
 	opts.SetKeepAlive(60 * time.Second)
 
 	if c.Config.Username != "" {
@@ -116,32 +123,101 @@ func (c *MQTTLoadClient) Connect() error {
 		opts.SetPassword(c.Config.Password)
 	}
 
-	client := mqtt.NewClient(opts)
+	var lastErr error
+	retryDelay := initialRetryDelay
 
-	token := client.Connect()
-	if token.Wait() && token.Error() != nil {
+	for attempt := 1; attempt <= maxRetryAttempts; attempt++ {
+		client := mqtt.NewClient(opts)
+		token := client.Connect()
+
+		if token.Wait() && token.Error() != nil {
+			lastErr = token.Error()
+
+			// Don't retry on the last attempt
+			if attempt == maxRetryAttempts {
+				atomic.AddInt64(&c.Stats.ConnectionsTotal, 1)
+				atomic.AddInt64(&c.Stats.ConnectionsFailed, 1)
+				c.Stats.mu.Lock()
+				c.Stats.errors = append(c.Stats.errors, ErrorRecord{
+					Time:     time.Now(),
+					Type:     "connection",
+					ClientID: c.ClientID,
+					Message:  fmt.Sprintf("Attempt %d/%d failed: %s", attempt, maxRetryAttempts, lastErr.Error()),
+				})
+				c.Stats.mu.Unlock()
+				return lastErr
+			}
+
+			// Exponential backoff with jitter
+			jitter := time.Duration(rand.Float64() * float64(retryDelay) * 0.5)
+			time.Sleep(retryDelay + jitter)
+			retryDelay *= 2 // Exponential backoff: 1s, 2s, 4s, 8s
+			continue
+		}
+
+		// Success
 		atomic.AddInt64(&c.Stats.ConnectionsTotal, 1)
-		atomic.AddInt64(&c.Stats.ConnectionsFailed, 1)
-		c.Stats.mu.Lock()
-		c.Stats.errors = append(c.Stats.errors, ErrorRecord{
-			Time:     time.Now(),
-			Type:     "connection",
-			ClientID: c.ClientID,
-			Message:  token.Error().Error(),
-		})
-		c.Stats.mu.Unlock()
-		return token.Error()
+		atomic.AddInt64(&c.Stats.ConnectionsSuccess, 1)
+		atomic.AddInt64(&c.Stats.ActiveClients, 1)
+
+		c.client = client
+		return nil
 	}
 
-	atomic.AddInt64(&c.Stats.ConnectionsTotal, 1)
-	atomic.AddInt64(&c.Stats.ConnectionsSuccess, 1)
-	atomic.AddInt64(&c.Stats.ActiveClients, 1)
-
-	c.client = client
-	return nil
+	return lastErr
 }
 
 func (c *MQTTLoadClient) StartPublishing(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.Done:
+			return
+		case <-ticker.C:
+			c.publish()
+		}
+	}
+}
+
+// StartPublishingSync publishes at synchronized 15-minute intervals (00:00, 00:15, 00:30, 00:45)
+// with small random jitter to prevent exact timestamp collision
+func (c *MQTTLoadClient) StartPublishingSync(interval time.Duration, jitter time.Duration) {
+	// Calculate first interval boundary
+	now := time.Now()
+	var firstTick time.Time
+
+	// Find the next 15-minute mark
+	minutes := now.Minute()
+	nextQuarter := ((minutes / 15) + 1) * 15
+	if nextQuarter >= 60 {
+		firstTick = now.Add(time.Duration(60-nextQuarter) * time.Minute)
+		firstTick = time.Date(firstTick.Year(), firstTick.Month(), firstTick.Day(), firstTick.Hour(), 0, 0, 0, firstTick.Location())
+	} else {
+		firstTick = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), nextQuarter, 0, 0, now.Location())
+	}
+
+	// Add random jitter to this client (natural clock drift variation)
+	// Each RTU has slightly different timing due to hardware/network differences
+	randomJitter := time.Duration(rand.Float64() * float64(jitter) * 2)
+	firstTick = firstTick.Add(randomJitter - jitter)
+
+	// Calculate initial delay
+	initialDelay := time.Until(firstTick)
+	if initialDelay < 0 {
+		initialDelay = 0
+	}
+
+	// Wait for first interval
+	select {
+	case <-c.Done:
+		return
+	case <-time.After(initialDelay):
+		c.publish()
+	}
+
+	// Continue with interval ticker
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -160,67 +236,78 @@ func (c *MQTTLoadClient) publish() {
 		return
 	}
 
-	// Generate RTU data payload
+	// Generate realistic electrical measurements
+	// Voltage: 220-240V (normal distribution around 230V)
+	vr := 220.0 + rand.Float64()*20
+	vs := 220.0 + rand.Float64()*20
+	vt := 220.0 + rand.Float64()*20
+
+	// Current: 80-200A (based on load)
+	ir := 80.0 + rand.Float64()*120
+	is_ := 80.0 + rand.Float64()*120
+	it := 80.0 + rand.Float64()*120
+	in := (ir + is_ + it) * 0.02 + rand.Float64()*5 // Neutral ~2% of phase current
+
+	// Power Factor: 0.90-0.99 (industrial equipment)
+	pf1 := 0.90 + rand.Float64()*0.09
+	pf2 := 0.90 + rand.Float64()*0.09
+	pf3 := 0.90 + rand.Float64()*0.09
+
+	// Harmonic currents (F1, F2)
+	i1f1 := ir * 0.8 + rand.Float64()*20
+	i2f1 := is_ * 0.8 + rand.Float64()*20
+	i3f1 := it * 0.8 + rand.Float64()*20
+	inf1 := in * 0.4
+
+	i1f2 := ir * 0.7 + rand.Float64()*20
+	i2f2 := is_ * 0.7 + rand.Float64()*20
+	i3f2 := it * 0.7 + rand.Float64()*20
+	inf2 := in * 0.3
+
+	// Temperature: 25-45°C (ambient + equipment heat)
+	tk1 := 25.0 + rand.Float64()*20
+	tk2 := tk1 + rand.Float64()*5 + 1 // TK2 slightly higher
+
+	// Timestamp: Unix timestamp (seconds)
 	now := time.Now()
-	timestamp := now.Format("2006-01-02T15:04:05-07:00")
+	ts := now.Unix()
 
-	// Simulate realistic electrical measurements
-	voltageL1 := 230.0 + rand.Float64()*20 - 10 // 220-240V
-	voltageL2 := 230.0 + rand.Float64()*20 - 10
-	voltageL3 := 230.0 + rand.Float64()*20 - 10
+	// Build JSON payload matching SensorReadingParser schema
+	// Required fields: rtuId, VR, VS, VT, IR, IS, IT, IN, PF1, PF2, PF3, TS
+	// Optional fields: I*, TK* (expandable)
+	payload := fmt.Sprintf(`{
+		"rtuId": "%s",
+		"TS": %d,
+		"VR": %.2f,
+		"VS": %.2f,
+		"VT": %.2f,
+		"IR": %.2f,
+		"IS": %.2f,
+		"IT": %.2f,
+		"IN": %.2f,
+		"PF1": %.3f,
+		"PF2": %.3f,
+		"PF3": %.3f,
+		"I1F1": %.2f,
+		"I2F1": %.2f,
+		"I3F1": %.2f,
+		"INF1": %.2f,
+		"I1F2": %.2f,
+		"I2F2": %.2f,
+		"I3F2": %.2f,
+		"INF2": %.2f,
+		"TK1": %.1f,
+		"TK2": %.1f
+	}`, c.Config.RTUID, ts,
+		vr, vs, vt,
+		ir, is_, it, in,
+		pf1, pf2, pf3,
+		i1f1, i2f1, i3f1, inf1,
+		i1f2, i2f2, i3f2, inf2,
+		tk1, tk2)
 
-	currentL1 := 100.0 + rand.Float64()*100 // 100-200A
-	currentL2 := 100.0 + rand.Float64()*100
-	currentL3 := 100.0 + rand.Float64()*100
-	currentN := currentL1 + currentL2 + currentL3 - rand.Float64()*50
-	currentTotal := currentL1 + currentL2 + currentL3
-
-	pfL1 := 0.9 + rand.Float64()*0.09 // 0.9-0.99
-	pfL2 := 0.9 + rand.Float64()*0.09
-	pfL3 := 0.9 + rand.Float64()*0.09
-
-	activatePowerL1 := voltageL1 * currentL1 * pfL1
-	activatePowerL2 := voltageL2 * currentL2 * pfL2
-	activatePowerL3 := voltageL3 * currentL3 * pfL3
-
-	reactivePowerL1 := activatePowerL1 * 0.3
-	reactivePowerL2 := activatePowerL2 * 0.3
-	reactivePowerL3 := activatePowerL3 * 0.3
-
-	apparentPowerL1 := voltageL1 * currentL1
-	apparentPowerL2 := voltageL2 * currentL2
-	apparentPowerL3 := voltageL3 * currentL3
-	apparentPowerTotal := apparentPowerL1 + apparentPowerL2 + apparentPowerL3
-
-	currentL1F1 := currentL1 * 0.8 + rand.Float64()*20
-	currentL2F1 := currentL2 * 0.8 + rand.Float64()*20
-	currentL3F1 := currentL3 * 0.8 + rand.Float64()*20
-	currentNF1 := currentN * 0.4
-
-	currentL1F2 := currentL1 * 0.7 + rand.Float64()*20
-	currentL2F2 := currentL2 * 0.7 + rand.Float64()*20
-	currentL3F2 := currentL3 * 0.7 + rand.Float64()*20
-	currentNF2 := currentN * 0.3
-
-	temp1 := 25.0 + rand.Float64()*15 // 25-40°C
-	temp2 := 25.0 + rand.Float64()*15
-
-	// Create CSV payload
-	payload := fmt.Sprintf("%s\t%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f",
-		timestamp,
-		c.Config.RTUID,
-		voltageL1, voltageL2, voltageL3,
-		currentL1, currentL2, currentL3, currentN, currentTotal,
-		pfL1, pfL2, pfL3,
-		activatePowerL1, activatePowerL2, activatePowerL3,
-		reactivePowerL1, reactivePowerL2, reactivePowerL3,
-		apparentPowerL1, apparentPowerL2, apparentPowerL3, apparentPowerTotal,
-		currentL1F1, currentL2F1, currentL3F1, currentNF1,
-		currentL1F2, currentL2F2, currentL3F2, currentNF2,
-		temp1, temp2)
-
-	// Each RTU publishes to its own topic
-	topic := fmt.Sprintf("%s/%s", c.Config.Topic, c.Config.RTUID)
+	// Each RTU publishes to its own topic: thms/{rtuId}/data
+	topic := fmt.Sprintf("%s/%s/data", c.Config.Topic, c.Config.RTUID)
 
 	token := c.client.Publish(topic, c.Config.QoS, c.Config.Retain, payload)
 	atomic.AddInt64(&c.Stats.PublishesTotal, 1)
@@ -260,7 +347,7 @@ func init() {
 	rootCmd.Flags().IntVarP(&clients, "clients", "c", 10, "Number of concurrent clients (RTUs)")
 	rootCmd.Flags().IntVarP(&intervalSec, "interval", "i", 5, "Publish interval per client (seconds)")
 	rootCmd.Flags().IntVarP(&durationSec, "duration", "d", 60, "Test duration (seconds)")
-	rootCmd.Flags().StringVarP(&topic, "topic", "t", "rtu/data", "Base topic for RTU data")
+	rootCmd.Flags().StringVarP(&topic, "topic", "t", "thms", "Base topic for RTU data (format: {topic}/{rtuId}/data)")
 	rootCmd.Flags().StringVar(&rtuPrefix, "rtu-prefix", "25090100000", "RTU ID prefix (will append sequential number)")
 	rootCmd.Flags().StringVarP(&username, "username", "u", "", "Username for authentication")
 	rootCmd.Flags().StringVarP(&password, "password", "P", "", "Password for authentication")
@@ -268,11 +355,14 @@ func init() {
 	rootCmd.Flags().BoolVar(&retain, "retain", false, "Set retain flag")
 	rootCmd.Flags().BoolVar(&clean, "clean", true, "Use clean session")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
+	rootCmd.Flags().BoolVar(&syncMode, "sync", false, "Synchronized mode (all devices publish at same interval mark)")
+	rootCmd.Flags().IntVar(&jitterSec, "jitter", 5, "Random jitter in seconds for sync mode (±jitter)")
 }
 
 func runLoadTest(cmd *cobra.Command, args []string) {
 	duration := time.Duration(durationSec) * time.Second
 	interval := time.Duration(intervalSec) * time.Second
+	jitter := time.Duration(jitterSec) * time.Second
 	qos := byte(qosLevel)
 
 	fmt.Printf("\n🚀 Starting MQTT Load Test\n")
@@ -280,6 +370,12 @@ func runLoadTest(cmd *cobra.Command, args []string) {
 	fmt.Printf("   Clients:  %d\n", clients)
 	fmt.Printf("   Duration: %v\n", duration)
 	fmt.Printf("   Interval: %v\n", interval)
+	if syncMode {
+		fmt.Printf("   Mode:     🔄 SYNCHRONIZED BURST (at :00, :15, :30, :45)\n")
+		fmt.Printf("   Jitter:   ±%v\n", jitter)
+	} else {
+		fmt.Printf("   Mode:     ⏱ Continuous stream\n")
+	}
 	fmt.Printf("   Topic:    %s\n", topic)
 	if username != "" {
 		fmt.Printf("   Auth:     %s:***\n", username)
@@ -297,20 +393,20 @@ func runLoadTest(cmd *cobra.Command, args []string) {
 	var wg sync.WaitGroup
 
 	// Dynamic connection rate based on client count
-	// Scale concurrency and stagger for optimal connection rate
+	// Balanced for speed vs broker stability
 	var maxConcurrentConns int
 	var staggerDelay time.Duration
 
-	if clients <= 1000 {
-		maxConcurrentConns = 100
-		staggerDelay = 50 * time.Millisecond
-	} else if clients <= 5000 {
+	if clients <= 500 {
 		maxConcurrentConns = 200
-		staggerDelay = 30 * time.Millisecond
+		staggerDelay = 5 * time.Millisecond
+	} else if clients <= 2000 {
+		maxConcurrentConns = 400
+		staggerDelay = 10 * time.Millisecond
 	} else {
-		// For 10K+ clients
-		maxConcurrentConns = 500
-		staggerDelay = 20 * time.Millisecond
+		// For 5K+ clients
+		maxConcurrentConns = 600
+		staggerDelay = 15 * time.Millisecond
 	}
 
 	fmt.Printf("🔧 Connection settings: %d concurrent, %v stagger\n", maxConcurrentConns, staggerDelay)
@@ -390,7 +486,11 @@ func runLoadTest(cmd *cobra.Command, args []string) {
 		wg.Add(1)
 		go func(c *MQTTLoadClient) {
 			defer wg.Done()
-			c.StartPublishing(interval)
+			if syncMode {
+				c.StartPublishingSync(interval, jitter)
+			} else {
+				c.StartPublishing(interval)
+			}
 		}(client)
 	}
 
