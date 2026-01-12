@@ -297,13 +297,14 @@ func runLoadTest(cmd *cobra.Command, args []string) {
 	var wg sync.WaitGroup
 
 	// Semaphore to limit concurrent connections (prevents TCP backlog overwhelm)
-	// Adjust based on broker capacity - 50 is safe for properly configured brokers
-	maxConcurrentConns := 50
+	// Higher values reduce race condition in MQTT client library during rapid connections
+	// 500 provides good balance between connection rate and stability
+	maxConcurrentConns := 500
 	semaphore := make(chan struct{}, maxConcurrentConns)
 
 	for i := 0; i < clients; i++ {
-		// Generate unique RTU ID: rtuPrefix + sequential number (with leading zeros)
-		rtuID := fmt.Sprintf("%s%d", rtuPrefix, i+1)
+		// Generate unique RTU ID: rtuPrefix + sequential number (with zero-padding to 5 digits)
+		rtuID := fmt.Sprintf("%s%05d", rtuPrefix, i+1)
 		clientID := fmt.Sprintf("rtu_%s", rtuID)
 
 		clientList[i] = &MQTTLoadClient{
