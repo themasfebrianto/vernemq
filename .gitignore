@@ -223,3 +223,9 @@ vars/dev*_vars.config
 
 # Generated files
 *.generated.*
+
+.claude/
+.claude_*
+CLAUDE.md
+*.claude
+tmpclaude-*
