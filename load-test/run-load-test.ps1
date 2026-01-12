@@ -6,12 +6,13 @@
 # Usage:
 #   .\run-load-test.ps1                    # Run with default settings
 #   .\run-load-test.ps1 -Preset basic      # Basic load test (50 clients, 60s)
-#   .\run-load-test.ps1 -Preset stress     # Stress test (high load)
+#   .\run-load-test.ps1 -Preset stress     # Stress test (1000 clients, 300s)
+#   .\run-load-test.ps1 -Preset 10k        # 10K connection test (10000 clients)
 #   .\run-load-test.ps1 -Custom -Clients 100 -Duration 300
 # =============================================================================
 
 param(
-    [ValidateSet("basic", "stress", "endurance", "spike")]
+    [ValidateSet("basic", "stress", "endurance", "spike", "10k")]
     [string]$Preset = "basic",
 
     [switch]$Custom,
@@ -113,11 +114,20 @@ if ($Custom) {
             Write-Host "       2000 clients, 120s duration, 2s interval" -ForegroundColor White
             $cmd = ".\mqtt-loadtest.exe -b $Broker -c 2000 -d 120 -i 2 -t $Topic --rtu-prefix $RtuPrefix"
         }
+        "10k" {
+            Write-Host "       10000 clients, 600s duration, 5s interval" -ForegroundColor White
+            $cmd = ".\mqtt-loadtest.exe -b $Broker -c 10000 -d 600 -i 5 -t $Topic --rtu-prefix $RtuPrefix"
+        }
     }
     Write-Host ""
 
     if ($Verbose) {
         $cmd += " --verbose"
+    }
+
+    # Add auth parameters for all presets
+    if ($Username) {
+        $cmd += " -u $Username -P $Password"
     }
 }
 

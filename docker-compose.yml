@@ -52,8 +52,8 @@ services:
     environment:
       - DOCKER_VERNEMQ_ACCEPT_EULA=yes
       - DOCKER_VERNEMQ_ALLOW_ANONYMOUS=off
-      # ========== Performance Tuning for 1000+ Connections ==========
-      # Max connections per listener (default: infinity, set explicit limit)
+      # Disable file-based auth, only use webhooks
+      - DOCKER_VERNEMQ_PLUGINS__VMQ_PASSWD=off
       # Increased to support 10000+ RTU load testing
       - DOCKER_VERNEMQ_LISTENER__TCP__DEFAULT__MAX_CONNECTIONS=10000
       # Erlang VM tuning
@@ -82,17 +82,7 @@ services:
       # Webhook for client gone (disconnect with clean session - session removed)
       - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH6__HOOK=on_client_gone
       - DOCKER_VERNEMQ_VMQ_WEBHOOKS__MYAUTH6__ENDPOINT=http://webhook-auth:80/mqtt/client-gone
-      # TLS Configuration (uncomment when certificates are available)
-      # - DOCKER_VERNEMQ_LISTENER__SSL__DEFAULT=0.0.0.0:8883
-      # - DOCKER_VERNEMQ_LISTENER__SSL__DEFAULT__CAFILE=/opt/vernemq/etc/ssl/ca.crt
-      # - DOCKER_VERNEMQ_LISTENER__SSL__DEFAULT__CERTFILE=/opt/vernemq/etc/ssl/server.crt
-      # - DOCKER_VERNEMQ_LISTENER__SSL__DEFAULT__KEYFILE=/opt/vernemq/etc/ssl/server.key
-      # - DOCKER_VERNEMQ_LISTENER__SSL__DEFAULT__REQUIRE_CERTIFICATE=off
     volumes:
-      # Uncomment when SSL certificates are ready
-      # - ./ssl/ca.crt:/opt/vernemq/etc/ssl/ca.crt:ro
-      # - ./ssl/server.crt:/opt/vernemq/etc/ssl/server.crt:ro
-      # - ./ssl/server.key:/opt/vernemq/etc/ssl/server.key:ro
       - vernemq_data:/opt/vernemq/data
     depends_on:
       - webhook-auth
@@ -105,8 +95,6 @@ services:
   redis:
     image: redis:7-alpine
     container_name: redis
-    ports:
-      - "6379:6379"
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data

@@ -296,7 +296,25 @@ func runLoadTest(cmd *cobra.Command, args []string) {
 	clientList := make([]*MQTTLoadClient, clients)
 	var wg sync.WaitGroup
 
-	maxConcurrentConns := 500
+	// Dynamic connection rate based on client count
+	// Scale concurrency and stagger for optimal connection rate
+	var maxConcurrentConns int
+	var staggerDelay time.Duration
+
+	if clients <= 1000 {
+		maxConcurrentConns = 100
+		staggerDelay = 50 * time.Millisecond
+	} else if clients <= 5000 {
+		maxConcurrentConns = 200
+		staggerDelay = 30 * time.Millisecond
+	} else {
+		// For 10K+ clients
+		maxConcurrentConns = 500
+		staggerDelay = 20 * time.Millisecond
+	}
+
+	fmt.Printf("🔧 Connection settings: %d concurrent, %v stagger\n", maxConcurrentConns, staggerDelay)
+
 	semaphore := make(chan struct{}, maxConcurrentConns)
 
 	for i := 0; i < clients; i++ {
@@ -321,8 +339,8 @@ func runLoadTest(cmd *cobra.Command, args []string) {
 			Done:  make(chan struct{}),
 		}
 
-		// Small stagger to prevent thundering herd at semaphore acquisition
-		time.Sleep(20 * time.Millisecond)
+		// Stagger connections to reduce auth service load
+		time.Sleep(staggerDelay)
 
 		wg.Add(1)
 		go func(idx int) {
