@@ -3,7 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math"
+	mathrand "math/rand"
 	"os"
 	"os/signal"
 	"strings"
@@ -32,6 +33,7 @@ var (
 	verbose      bool
 	syncMode     bool   // Synchronized burst mode (all devices at 15-min intervals)
 	jitterSec    int    // Random jitter in seconds (default: ±5s)
+	testMode     bool   // Test mode: generates predictable threshold/peak values
 )
 
 // Statistics tracking
@@ -83,12 +85,14 @@ type PublishStats struct {
 
 // MQTT Client wrapper
 type MQTTLoadClient struct {
-	ID       int
-	ClientID string
-	client   mqtt.Client
-	Config   ClientConfig
-	Stats    *Stats
-	Done     chan struct{}
+	ID              int
+	ClientID        string
+	client          mqtt.Client
+	Config          ClientConfig
+	Stats           *Stats
+	Done            chan struct{}
+	PublishCount    int64   // Track number of publishes for test mode
+	mu              sync.Mutex  // Protect PublishCount
 }
 
 type ClientConfig struct {
@@ -149,7 +153,7 @@ func (c *MQTTLoadClient) Connect() error {
 			}
 
 			// Exponential backoff with jitter
-			jitter := time.Duration(rand.Float64() * float64(retryDelay) * 0.5)
+			jitter := time.Duration(mathrand.Float64() * float64(retryDelay) * 0.5)
 			time.Sleep(retryDelay + jitter)
 			retryDelay *= 2 // Exponential backoff: 1s, 2s, 4s, 8s
 			continue
@@ -200,7 +204,7 @@ func (c *MQTTLoadClient) StartPublishingSync(interval time.Duration, jitter time
 
 	// Add random jitter to this client (natural clock drift variation)
 	// Each RTU has slightly different timing due to hardware/network differences
-	randomJitter := time.Duration(rand.Float64() * float64(jitter) * 2)
+	randomJitter := time.Duration(mathrand.Float64() * float64(jitter) * 2)
 	firstTick = firstTick.Add(randomJitter - jitter)
 
 	// Calculate initial delay
@@ -236,75 +240,172 @@ func (c *MQTTLoadClient) publish() {
 		return
 	}
 
-	// Generate realistic electrical measurements
-	// Voltage: 220-240V (normal distribution around 230V)
-	vr := 220.0 + rand.Float64()*20
-	vs := 220.0 + rand.Float64()*20
-	vt := 220.0 + rand.Float64()*20
+	// Increment publish count for test mode
+	c.mu.Lock()
+	c.PublishCount++
+	count := c.PublishCount
+	c.mu.Unlock()
 
-	// Current: 80-200A (based on load)
-	ir := 80.0 + rand.Float64()*120
-	is_ := 80.0 + rand.Float64()*120
-	it := 80.0 + rand.Float64()*120
-	in := (ir + is_ + it) * 0.02 + rand.Float64()*5 // Neutral ~2% of phase current
+	var vr, vs, vt, ir, is_, it, in, pf1, pf2, pf3, tk1, tk2, i1f1, i2f1, i3f1, inf1, i1f2, i2f2, i3f2, inf2 float64
+	var payload string
+	var now time.Time
+	var ts int64
 
-	// Power Factor: 0.90-0.99 (industrial equipment)
-	pf1 := 0.90 + rand.Float64()*0.09
-	pf2 := 0.90 + rand.Float64()*0.09
-	pf3 := 0.90 + rand.Float64()*0.09
+	if testMode {
+		// ============================================
+		// TEST MODE: Predictable threshold/peak values
+		// ============================================
+		// Pattern cycles every 10 messages:
+		// 1-3: Normal values
+		// 4: Voltage High (threshold trigger)
+		// 5: Voltage Low (threshold trigger)
+		// 6: Current High (threshold trigger)
+		// 7: Temperature High (threshold trigger)
+		// 8: Power Factor Low (threshold trigger)
+		// 9-10: Normal values with increasing STot (for peak detection)
 
-	// Harmonic currents (F1, F2)
-	i1f1 := ir * 0.8 + rand.Float64()*20
-	i2f1 := is_ * 0.8 + rand.Float64()*20
-	i3f1 := it * 0.8 + rand.Float64()*20
-	inf1 := in * 0.4
+		cycle := (count % 10)
 
-	i1f2 := ir * 0.7 + rand.Float64()*20
-	i2f2 := is_ * 0.7 + rand.Float64()*20
-	i3f2 := it * 0.7 + rand.Float64()*20
-	inf2 := in * 0.3
+		switch cycle {
+		case 1, 2, 3, 9, 10:
+			// Normal values
+			vr, vs, vt = 230.0, 230.0, 230.0
+			ir, is_, it = 150.0, 150.0, 150.0
+			pf1, pf2, pf3 = 0.95, 0.95, 0.95
+			tk1, tk2 = 35.0, 37.0
+		case 4:
+			// Voltage High: 260V (exceeds typical 250V threshold)
+			vr, vs, vt = 260.0, 260.0, 260.0
+			ir, is_, it = 150.0, 150.0, 150.0
+			pf1, pf2, pf3 = 0.95, 0.95, 0.95
+			tk1, tk2 = 35.0, 37.0
+		case 5:
+			// Voltage Low: 200V (below typical 210V threshold)
+			vr, vs, vt = 200.0, 200.0, 200.0
+			ir, is_, it = 150.0, 150.0, 150.0
+			pf1, pf2, pf3 = 0.95, 0.95, 0.95
+			tk1, tk2 = 35.0, 37.0
+		case 6:
+			// Current High: 250A (exceeds typical 200A threshold)
+			vr, vs, vt = 230.0, 230.0, 230.0
+			ir, is_, it = 250.0, 250.0, 250.0
+			pf1, pf2, pf3 = 0.95, 0.95, 0.95
+			tk1, tk2 = 35.0, 37.0
+		case 7:
+			// Temperature High: 70°C (exceeds typical 50°C threshold)
+			vr, vs, vt = 230.0, 230.0, 230.0
+			ir, is_, it = 150.0, 150.0, 150.0
+			pf1, pf2, pf3 = 0.95, 0.95, 0.95
+			tk1, tk2 = 70.0, 72.0
+		case 8:
+			// Power Factor Low: 0.75 (below typical 0.85 threshold)
+			vr, vs, vt = 230.0, 230.0, 230.0
+			ir, is_, it = 150.0, 150.0, 150.0
+			pf1, pf2, pf3 = 0.75, 0.75, 0.75
+			tk1, tk2 = 35.0, 37.0
+		}
 
-	// Temperature: 25-45°C (ambient + equipment heat)
-	tk1 := 25.0 + rand.Float64()*20
-	tk2 := tk1 + rand.Float64()*5 + 1 // TK2 slightly higher
+		in = (ir + is_ + it) * 0.02
+		i1f1, i2f1, i3f1 = ir*0.8, is_*0.8, it*0.8
+		inf1 = in * 0.4
+		i1f2, i2f2, i3f2 = ir*0.7, is_*0.7, it*0.7
+		inf2 = in * 0.3
 
-	// Timestamp: Unix timestamp (seconds)
-	now := time.Now()
-	ts := now.Unix()
+		// Calculate power values
+		pr, ps, pt := vr*ir*pf1, vs*is_*pf2, vt*it*pf3
+		qr, qs, qt := vr*ir*math.Sqrt(1-pf1*pf1), vs*is_*math.Sqrt(1-pf2*pf2), vt*it*math.Sqrt(1-pf3*pf3)
+		sr, ss, st := vr*ir, vs*is_, vt*it
+		stot := sr + ss + st
 
-	// Build JSON payload matching SensorReadingParser schema
-	// Required fields: rtuId, VR, VS, VT, IR, IS, IT, IN, PF1, PF2, PF3, TS
-	// Optional fields: I*, TK* (expandable)
-	payload := fmt.Sprintf(`{
-		"rtuId": "%s",
-		"TS": %d,
-		"VR": %.2f,
-		"VS": %.2f,
-		"VT": %.2f,
-		"IR": %.2f,
-		"IS": %.2f,
-		"IT": %.2f,
-		"IN": %.2f,
-		"PF1": %.3f,
-		"PF2": %.3f,
-		"PF3": %.3f,
-		"I1F1": %.2f,
-		"I2F1": %.2f,
-		"I3F1": %.2f,
-		"INF1": %.2f,
-		"I1F2": %.2f,
-		"I2F2": %.2f,
-		"I3F2": %.2f,
-		"INF2": %.2f,
-		"TK1": %.1f,
-		"TK2": %.1f
-	}`, c.Config.RTUID, ts,
-		vr, vs, vt,
-		ir, is_, it, in,
-		pf1, pf2, pf3,
-		i1f1, i2f1, i3f1, inf1,
-		i1f2, i2f2, i3f2, inf2,
-		tk1, tk2)
+		// For cycles 9-10, increase STot to trigger peak updates
+		if cycle == 9 {
+			stot = 100000.0 + float64(count%100)*5000.0 // 100-600 kVA in watts
+			sr, ss, st = stot/3.0, stot/3.0, stot/3.0
+		} else if cycle == 10 {
+			stot = 500000.0 + float64(count%100)*10000.0 // 500-1500 kVA in watts
+			sr, ss, st = stot/3.0, stot/3.0, stot/3.0
+		}
+
+		// Timestamp
+		now = time.Now()
+		ts = now.Unix()
+
+		// Build JSON payload
+		payload = fmt.Sprintf(`{
+			"rtuId": "%s",
+			"TS": %d,
+			"VR": %.2f, "VS": %.2f, "VT": %.2f,
+			"IR": %.2f, "IS": %.2f, "IT": %.2f, "IN": %.2f,
+			"PF1": %.3f, "PF2": %.3f, "PF3": %.3f,
+			"PR": %.2f, "PS": %.2f, "PT": %.2f,
+			"QR": %.2f, "QS": %.2f, "QT": %.2f,
+			"SR": %.2f, "SS": %.2f, "ST": %.2f, "STot": %.2f,
+			"ITot": %.2f,
+			"I1F1": %.2f, "I2F1": %.2f, "I3F1": %.2f, "INF1": %.2f,
+			"I1F2": %.2f, "I2F2": %.2f, "I3F2": %.2f, "INF2": %.2f,
+			"TK1": %.1f, "TK2": %.1f
+		}`, c.Config.RTUID, ts,
+			vr, vs, vt,
+			ir, is_, it, in,
+			pf1, pf2, pf3,
+			pr, ps, pt,
+			qr, qs, qt,
+			sr, ss, st, stot,
+			ir+is_+it,
+			i1f1, i2f1, i3f1, inf1,
+			i1f2, i2f2, i3f2, inf2,
+			tk1, tk2)
+
+	} else {
+		// ============================================
+		// NORMAL MODE: Random realistic values
+		// ============================================
+		vr = 220.0 + mathrand.Float64()*20
+		vs = 220.0 + mathrand.Float64()*20
+		vt = 220.0 + mathrand.Float64()*20
+
+		ir = 80.0 + mathrand.Float64()*120
+		is_ = 80.0 + mathrand.Float64()*120
+		it = 80.0 + mathrand.Float64()*120
+		in = (ir + is_ + it) * 0.02 + mathrand.Float64()*5
+
+		pf1 = 0.90 + mathrand.Float64()*0.09
+		pf2 = 0.90 + mathrand.Float64()*0.09
+		pf3 = 0.90 + mathrand.Float64()*0.09
+
+		i1f1 = ir*0.8 + mathrand.Float64()*20
+		i2f1 = is_*0.8 + mathrand.Float64()*20
+		i3f1 = it*0.8 + mathrand.Float64()*20
+		inf1 = in * 0.4
+
+		i1f2 = ir*0.7 + mathrand.Float64()*20
+		i2f2 = is_*0.7 + mathrand.Float64()*20
+		i3f2 = it*0.7 + mathrand.Float64()*20
+		inf2 = in * 0.3
+
+		tk1 = 25.0 + mathrand.Float64()*20
+		tk2 = tk1 + mathrand.Float64()*5 + 1
+
+		now = time.Now()
+		ts = now.Unix()
+
+		payload = fmt.Sprintf(`{
+			"rtuId": "%s",
+			"TS": %d,
+			"VR": %.2f, "VS": %.2f, "VT": %.2f,
+			"IR": %.2f, "IS": %.2f, "IT": %.2f, "IN": %.2f,
+			"PF1": %.3f, "PF2": %.3f, "PF3": %.3f,
+			"I1F1": %.2f, "I2F1": %.2f, "I3F1": %.2f, "INF1": %.2f,
+			"I1F2": %.2f, "I2F2": %.2f, "I3F2": %.2f, "INF2": %.2f,
+			"TK1": %.1f, "TK2": %.1f
+		}`, c.Config.RTUID, ts,
+			vr, vs, vt,
+			ir, is_, it, in,
+			pf1, pf2, pf3,
+			i1f1, i2f1, i3f1, inf1,
+			i1f2, i2f2, i3f2, inf2,
+			tk1, tk2)
+	}
 
 	// Each RTU publishes to its own topic: thms/{rtuId}/data
 	topic := fmt.Sprintf("%s/%s/data", c.Config.Topic, c.Config.RTUID)
@@ -357,6 +458,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
 	rootCmd.Flags().BoolVar(&syncMode, "sync", false, "Synchronized mode (all devices publish at same interval mark)")
 	rootCmd.Flags().IntVar(&jitterSec, "jitter", 5, "Random jitter in seconds for sync mode (±jitter)")
+	rootCmd.Flags().BoolVar(&testMode, "test-mode", false, "Test mode: generates predictable threshold/peak values for validation")
 }
 
 func runLoadTest(cmd *cobra.Command, args []string) {
@@ -370,7 +472,10 @@ func runLoadTest(cmd *cobra.Command, args []string) {
 	fmt.Printf("   Clients:  %d\n", clients)
 	fmt.Printf("   Duration: %v\n", duration)
 	fmt.Printf("   Interval: %v\n", interval)
-	if syncMode {
+	if testMode {
+		fmt.Printf("   Mode:     🧪 TEST MODE (predictable threshold/peak values)\n")
+		fmt.Printf("   Pattern:  10-msg cycle: normal x3, V-high, V-low, I-high, Temp-high, PF-low, peak x2\n")
+	} else if syncMode {
 		fmt.Printf("   Mode:     🔄 SYNCHRONIZED BURST (at :00, :15, :30, :45)\n")
 		fmt.Printf("   Jitter:   ±%v\n", jitter)
 	} else {
@@ -655,7 +760,7 @@ func repeat(s string, count int) string {
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
+	mathrand.Seed(time.Now().UnixNano())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
